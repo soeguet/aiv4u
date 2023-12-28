@@ -21,7 +21,7 @@ let mainDir = '/home/soeguet/Downloads/'
 async function fetchAllPdfFromDir(dir) {
   return fs.readdirSync(dir)
 }
-const anzahl = await fetchAllPdfFromDir(mainDir)
+const anzahl = fetchAllPdfFromDir(mainDir)
 
 /**
  *
@@ -59,7 +59,7 @@ async function createDatabaseTable(db) {
   });
 }
 
-await createDatabaseTable(db)
+createDatabaseTable(db)
 
 /**
  *

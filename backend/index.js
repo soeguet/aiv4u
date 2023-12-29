@@ -122,7 +122,7 @@ async function writePdfDataToDatabase(pdfDict) {
 // query search terms from frontend
 app.post("/api/v1/search", (req, res) => {
     let terms = req.body.query.split(" ");
-    let query = "SELECT name FROM pdfs WHERE ";
+    let query = "SELECT * FROM pdfs WHERE ";
     let queryParams = [];
 
     // stream through all search terms

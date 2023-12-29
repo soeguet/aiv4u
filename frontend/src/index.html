@@ -12,19 +12,72 @@
 
 <body>
     <div class="container rounded-4 text-bg-light mt-3 p-4 border border-primary-subtle">
+
         <header class="mb-3">
             <h1 class="display-5">fuzzy finder</h1>
+            <div class="fs-6 fw-light">request time: <span id="timer">0 ms</span></div>
         </header>
+
+        <div class="d-flex flex-row mb-3">
+            <!-- <button type="button" class="btn btn-outline-primary btn-sm me-2 my-2" data-bs-toggle="modal" data-bs-target="#exampleModal" -->
+            <!--     data-bs-whatever="@getbootstrap">⚙ </button> -->
+
+            <!-- TODO let this open the modal  -->
+            <div class="form-floating">
+                <input type="text" class="form-control" id="floatingInputGrid" placeholder="name@example.com"
+                    value="/home/user/downloads" disabled data-bs-toggle="modal" data-bs-target="#exampleModal"
+                    data-bs-whatever="@getbootstrap">
+                <label for="floatingInputGrid">selected path > click to change</label>
+            </div>
+
+        </div>
+
         <div class="form-floating mb-3">
             <textarea class="form-control" placeholder="search.." id="searchBox"></textarea>
             <label for="floatingTextarea">search terms</label>
         </div>
+
         <div id="results"></div>
 
+        <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="exampleModalLabel">new path</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <div class="mb-3">
+                                <label for="recipient-name" class="col-form-label">path:</label>
+                                <input type="text" class="form-control" id="recipient-name">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">abort</button>
+                        <button type="button" class="btn btn-primary">save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script defer src="script.js"></script>
+
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
             integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
             crossorigin="anonymous"></script>
+        <script>
+            document.getElementById('open-directory').addEventListener('click', async () => {
+                try {
+                    const handle = await window.showDirectoryPicker();
+                    console.log("handle", handle);
+                    // Hier können Sie Operationen mit den Dateien im Ordner durchführen
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+        </script>
         <div>
 </body>
 

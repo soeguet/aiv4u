@@ -13,7 +13,7 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 
-let mainDir = "/home/soeguet/Downloads/";
+let mainDir = "C:\\Users\\Osman\\Desktop\\_pharma4u\\";
 
 /**
  *
@@ -33,23 +33,24 @@ async function fetchAllPdfFromDir(dir) {
 async function cacheAllPdfsInDir(pdfList) {
     console.log("start caching all PDFs");
 
-    pdfList.forEach((pdf) => {
-        let dataBuffer = fs.readFileSync(mainDir + pdf);
+    await Promise.all(
+        pdfList.map((pdf) => {
+            let dataBuffer = fs.readFileSync(mainDir + pdf);
 
-        PDF(dataBuffer).then(function(data) {
-            const pdfEntry = {
-                name: pdf,
-                pages: data.numpages,
-                text: data.text,
-            };
-            writePdfDataToDatabase(pdfEntry);
-        });
-    });
+            PDF(dataBuffer)
+                .then(async function(data) {
+                    const pdfEntry = {
+                        name: pdf,
+                        pages: data.numpages,
+                        text: data.text,
+                    };
+                    await writePdfDataToDatabase(pdfEntry);
+                })
+                .catch((err) => console.log("Invalid PDF func" + err));
+        })
+    );
 }
 
-fetchAllPdfFromDir(mainDir)
-    .then((anzahl) => cacheAllPdfsInDir(anzahl))
-    .then(createDatabaseTable(db));
 /**
  *
  * Creates database table if it does not exist yet.
@@ -59,6 +60,31 @@ async function createDatabaseTable(db) {
     db.serialize(() => {
         db.run(
             "CREATE TABLE IF NOT EXISTS pdfs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pages INTEGER, text TEXT)"
+        );
+    });
+}
+
+async function checkIfEntryAlreadyInDb(pdfDict) {
+    db.serialize(() => {
+        // check if pdf name already exists
+        db.get(
+            "SELECT name FROM pdfs WHERE name = ?",
+            [pdfDict.name],
+            (err, row) => {
+                // error
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+
+                // does exist
+                if (row) {
+                    return true;
+                } else {
+                    // if not in database
+                    return false;
+                }
+            }
         );
     });
 }
@@ -73,6 +99,13 @@ async function createDatabaseTable(db) {
  * @param {string} pdfEntry.text
  */
 async function writePdfDataToDatabase(pdfDict) {
+
+    if (checkIfEntryAlreadyInDb(pdfDict)) {
+        console.log(
+            "Entry with the name '" + pdfDict.name + "' already exists."
+        );
+        return;
+    }
     db.serialize(() => {
         // check if pdf name already exists
         db.get(
@@ -149,9 +182,13 @@ app.post("/api/v1/search", (req, res) => {
             res.status(404).send("no entries found");
         }
     });
-
 });
 
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
 });
+
+fetchAllPdfFromDir(mainDir)
+    .then((anzahl) => cacheAllPdfsInDir(anzahl))
+    .then(createDatabaseTable(db))
+    .catch((err) => console.log("Invalid PDF " + err));

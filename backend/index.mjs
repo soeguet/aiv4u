@@ -13,7 +13,7 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 
-let mainDir = "C:\\Users\\Osman\\Desktop\\_pharma4u\\";
+let mainDir = "/home/soeguet/Downloads/";
 
 /**
  *
@@ -33,27 +33,26 @@ async function fetchAllPdfFromDir(dir) {
 async function cacheAllPdfsInDir(pdfList) {
     console.log("start caching all PDFs");
 
-    await Promise.all(
-        pdfList.map((pdf) => {
-            let dataBuffer = fs.readFileSync(mainDir + pdf);
-
-            PDF(dataBuffer)
-                .then(async function(data) {
-                    const pdfEntry = {
-                        name: pdf,
-                        pages: data.numpages,
-                        text: data.text,
-                    };
-                    await writePdfDataToDatabase(pdfEntry);
-                })
-                .catch((err) => console.log("Invalid PDF func" + err));
-        })
-    );
+    // const pdfListLength = pdfList.length;
+    for (const pdf of pdfList) {
+        let dataBuffer = fs.readFileSync(mainDir + pdf);
+        await PDF(dataBuffer)
+            .then(async (bufferedPdf) => {
+                // if not in database, write to database
+                const pdfEntry = {
+                    name: pdf,
+                    pages: bufferedPdf.numpages,
+                    text: bufferedPdf.text,
+                };
+                await writePdfDataToDatabase(pdfEntry);
+            })
+            .catch((err) => console.log("Invalid PDF func" + err));
+    }
 }
 
 /**
  *
- * Creates database table if it does not exist yet.
+ * Creates database table if it does not exist yet and renders name column unique.
  * @param {Object} db
  */
 async function createDatabaseTable(db) {
@@ -61,31 +60,7 @@ async function createDatabaseTable(db) {
         db.run(
             "CREATE TABLE IF NOT EXISTS pdfs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pages INTEGER, text TEXT)"
         );
-    });
-}
-
-async function checkIfEntryAlreadyInDb(pdfDict) {
-    db.serialize(() => {
-        // check if pdf name already exists
-        db.get(
-            "SELECT name FROM pdfs WHERE name = ?",
-            [pdfDict.name],
-            (err, row) => {
-                // error
-                if (err) {
-                    console.error(err);
-                    return;
-                }
-
-                // does exist
-                if (row) {
-                    return true;
-                } else {
-                    // if not in database
-                    return false;
-                }
-            }
-        );
+        db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_name ON pdfs(name)");
     });
 }
 
@@ -99,57 +74,19 @@ async function checkIfEntryAlreadyInDb(pdfDict) {
  * @param {string} pdfEntry.text
  */
 async function writePdfDataToDatabase(pdfDict) {
-
-    if (checkIfEntryAlreadyInDb(pdfDict)) {
-        console.log(
-            "Entry with the name '" + pdfDict.name + "' already exists."
-        );
-        return;
-    }
     db.serialize(() => {
-        // check if pdf name already exists
-        db.get(
-            "SELECT name FROM pdfs WHERE name = ?",
-            [pdfDict.name],
-            (err, row) => {
-                // error
+        db.run(
+            "INSERT OR IGNORE INTO pdfs(name, pages, text) VALUES(?, ?, ?);",
+            [pdfDict.name, pdfDict.pages, pdfDict.text],
+            (err) => {
                 if (err) {
                     console.error(err);
                     return;
                 }
-
-                // does exist
-                if (row) {
-                    console.log(
-                        "Entry with the name '" +
-                        pdfDict.name +
-                        "' already exists."
-                    );
-                } else {
-                    // if not in database
-                    const stmt = db.prepare(
-                        "INSERT INTO pdfs (name, pages, text) VALUES (?, ?, ?)"
-                    );
-
-                    stmt.run(
-                        pdfDict.name,
-                        pdfDict.pages,
-                        pdfDict.text,
-                        (err) => {
-                            if (err) {
-                                console.error(err);
-                                return;
-                            }
-
-                            console.log("Successfully persisted data.");
-                        }
-                    );
-
-                    stmt.finalize();
-                }
             }
         );
     });
+    console.log(`wrote ${pdfDict.name} to database`);
 }
 
 // query search terms from frontend
@@ -157,16 +94,14 @@ app.post("/api/v1/search", (req, res) => {
     let terms = req.body.query.split(" ");
     let query = "SELECT * FROM pdfs WHERE ";
     let queryParams = [];
+    let queryParts = [];
 
-    // stream through all search terms
-    terms.forEach((term, index) => {
-        query += "text LIKE ? OR name LIKE ?";
+    // stream through all search terms and concat them to query
+    terms.forEach((term) => {
+        queryParts.push("(text LIKE ? OR name LIKE ?)");
         queryParams.push(`%${term}%`, `%${term}%`);
-
-        if (index < terms.length - 1) {
-            query += " AND ";
-        }
     });
+    query += queryParts.join(" AND ");
 
     // fire query
     db.all(query, queryParams, (err, rows) => {
@@ -188,7 +123,8 @@ app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
 });
 
+await createDatabaseTable(db);
+
 fetchAllPdfFromDir(mainDir)
-    .then((anzahl) => cacheAllPdfsInDir(anzahl))
-    .then(createDatabaseTable(db))
+    .then(async (pdfList) => await cacheAllPdfsInDir(pdfList))
     .catch((err) => console.log("Invalid PDF " + err));

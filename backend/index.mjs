@@ -30,13 +30,13 @@ async function fetchAllPdfFromDir(dir) {
  * Caches all PDFs in selected Folder.
  * @param {Array} pdfList
  */
-async function cacheAllPdfsInDir(pdfList) {
+function cacheAllPdfsInDir(pdfList) {
     console.log("start caching all PDFs");
 
     // const pdfListLength = pdfList.length;
     for (const pdf of pdfList) {
         let dataBuffer = fs.readFileSync(mainDir + pdf);
-        await PDF(dataBuffer)
+        PDF(dataBuffer)
             .then(async (bufferedPdf) => {
                 // if not in database, write to database
                 const pdfEntry = {
@@ -125,6 +125,23 @@ app.listen(port, () => {
 
 await createDatabaseTable(db);
 
+async function getDbRowSize() {
+    return new Promise((resolve, reject) => {
+        db.get("SELECT COUNT(*) FROM pdfs;", (err, row) => {
+            if (err) {
+                reject(err);
+            }
+            resolve(row["COUNT(*)"]);
+        });
+    });
+}
 fetchAllPdfFromDir(mainDir)
-    .then(async (pdfList) => await cacheAllPdfsInDir(pdfList))
-    .catch((err) => console.log("Invalid PDF " + err));
+    .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
+    .then(async (pdfList) => {
+        const dbRowSize = await getDbRowSize();
+        if (dbRowSize === pdfList.length) {
+            throw new Error("No new PDFs to cache");
+        }
+    })
+    .then(async (pdfList) => cacheAllPdfsInDir(pdfList))
+    .catch((err) => console.log(err.message));

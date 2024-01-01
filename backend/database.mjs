@@ -5,6 +5,9 @@
  * @property {string} text - Der Text der PDF.
  */
 
+import sqlite3 from "sqlite3";
+const db = new sqlite3.Database("./myDB.db");
+
 /**
  *
  * Drop database table
@@ -72,3 +75,5 @@ export async function getDbRowSize(db) {
         });
     });
 }
+
+export default db;

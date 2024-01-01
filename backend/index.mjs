@@ -2,8 +2,8 @@ import express from "express";
 import fs from "fs";
 import PDF from "pdf-parse-fork";
 import cors from "cors";
+import db from "./database.mjs";
 
-import sqlite3 from "sqlite3";
 import {
     createDatabaseTable,
     dropDatabaseTable,
@@ -11,17 +11,18 @@ import {
     writePdfDataToDatabase,
 } from "./database.mjs";
 
-const db = new sqlite3.Database("./myDB.db");
 const app = express();
 let recacheRunning = false;
 let recachingCurrent = 0;
 let recachingTotal = 0;
 
+let mainDir = "/home/soeguet/Downloads/";
+
+export { mainDir };
+
 // middleware setup
 app.use(cors());
 app.use(express.json());
-
-let mainDir = "/home/soeguet/Downloads/";
 
 /**
  *
@@ -29,7 +30,7 @@ let mainDir = "/home/soeguet/Downloads/";
  * @param {String} dir
  * @returns Promise<string[]>
  */
-async function fetchAllPdfFromDir(dir) {
+export async function fetchAllPdfFromDir(dir) {
     return fs.readdirSync(dir);
 }
 
@@ -38,11 +39,17 @@ async function fetchAllPdfFromDir(dir) {
 /**
  *
  * Caches all PDFs in selected Folder.
- * @param {Object} db
+ * @param {String} mainDir
+ * @param {import('sqlite3').Database} db
  * @param {Array<String>} pdfList
  * @param {Function} writePdfToDatabaseFn
  */
-async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
+export async function cacheAllPdfsInDir(
+    mainDir,
+    db,
+    pdfList,
+    writePdfToDatabaseFn
+) {
     console.log("start caching all PDFs");
     console.log("pdfList: " + pdfList.length);
 
@@ -146,7 +153,12 @@ async function handleRecachingProcess() {
         })
         .then(
             async (pdfList) =>
-                await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase)
+                await cacheAllPdfsInDir(
+                    mainDir,
+                    db,
+                    pdfList,
+                    writePdfDataToDatabase
+                )
         )
         .then(() => {
             recachingTotal = 0;
@@ -184,22 +196,4 @@ app.post("/api/v1/folder-path", (req, res) => {
     });
 });
 
-// createDatabaseTable(db)
-//     .then(async () => await fetchAllPdfFromDir(mainDir))
-//     .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
-//     .then(async (pdfList) => {
-//         const dbRowSize = await getDbRowSize(db);
-//         console.log("dbRowSize: " + dbRowSize);
-//         console.log("pdfList.length: " + pdfList.length);
-//         if (dbRowSize === pdfList.length) {
-//             throw new Error("No new PDFs to cache");
-//         }
-//         return pdfList;
-//     })
-//     .then(
-//         async (pdfList) =>
-//             await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase)
-//     )
-//     .catch((err) => console.log(err.message));
-//
 export default app;

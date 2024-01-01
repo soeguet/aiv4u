@@ -4,6 +4,12 @@ import PDF from "pdf-parse-fork";
 import cors from "cors";
 
 import sqlite3 from "sqlite3";
+import {
+    createDatabaseTable,
+    dropDatabaseTable,
+    getDbRowSize,
+    writePdfDataToDatabase,
+} from "./database.mjs";
 
 const db = new sqlite3.Database("./myDB.db");
 const app = express();
@@ -33,10 +39,13 @@ async function fetchAllPdfFromDir(dir) {
 /**
  *
  * Caches all PDFs in selected Folder.
- * @param {Array} pdfList
+ * @param {Object} db
+ * @param {Array<String>} pdfList
+ * @param {Function} writePdfToDatabaseFn
  */
-async function cacheAllPdfsInDir(pdfList) {
+async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
     console.log("start caching all PDFs");
+    console.log("pdfList: " + pdfList.length);
 
     for (const pdf of pdfList) {
         try {
@@ -53,57 +62,22 @@ async function cacheAllPdfsInDir(pdfList) {
                 text: bufferedPdf.text,
             };
 
-            await writePdfDataToDatabase(pdfEntry);
+            await writePdfToDatabaseFn(db, pdfEntry);
         } catch (err) {
             console.log("Error processing PDF " + pdf + ": " + err);
         }
     }
 }
 
-/**
- *
- * Creates database table if it does not exist yet and renders name column unique.
- * @param {Object} db
- */
-async function createDatabaseTable(db) {
-    db.serialize(() => {
-        db.run(
-            "CREATE TABLE IF NOT EXISTS pdfs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pages INTEGER, text TEXT)"
-        );
-        db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_name ON pdfs(name)");
-    });
-}
-
-/**
- *
- * Check if PDF already in Database and store if not
- *
- * @param {Object} pdfEntry
- * @param {string} pdfEntry.name
- * @param {number} pdfEntry.pages
- * @param {string} pdfEntry.text
- */
-async function writePdfDataToDatabase(pdfDict) {
-    db.serialize(() => {
-        db.run(
-            "INSERT OR IGNORE INTO pdfs(name, pages, text) VALUES(?, ?, ?);",
-            [pdfDict.name, pdfDict.pages, pdfDict.text],
-            (err) => {
-                if (err) {
-                    console.error(err);
-                    return;
-                }
-            }
-        );
-    });
-    // console.log(`wrote ${pdfDict.name} to database`);
-}
-
 // query search terms from frontend
 app.post("/api/v1/search", (req, res) => {
+    /** @type {String[]} */
     let terms = req.body.query.split(" ");
+    /** @type {String} */
     let query = "SELECT * FROM pdfs WHERE ";
+    /** @type {String[]} */
     let queryParams = [];
+    /** @type {String[]} */
     let queryParts = [];
 
     // stream through all search terms and concat them to query
@@ -121,44 +95,69 @@ app.post("/api/v1/search", (req, res) => {
             return;
         }
 
-        console.log(rows);
+        // console.log(rows);
 
         if (rows.length > 0) {
             res.json(rows);
         } else {
-            res.json({ status: "no results", total: rows.length });
+            // check if database is empty
+            const dbRowSize = await getDbRowSize(db);
+            if (dbRowSize === 0) {
+                res.json({ status: "no results", total: 0 });
+                return;
+            }
+            res.json({ status: "no results", total: dbRowSize });
         }
     });
 });
-
-async function dropDatabaseTable(db) {
-    db.serialize(() => {
-        db.run("DROP TABLE IF EXISTS pdfs;");
-    });
-}
 
 app.get("/api/v1/folder-path", (_, res) => {
     res.json({ path: mainDir });
 });
 
-app.post("/api/v1/recache", (req, res) => {
+app.post("/api/v1/recache", async (req, res) => {
     console.log("recaching started");
-    dropDatabaseTable(db)
-        .then(() => createDatabaseTable(db))
-        .then(() =>
-            fetchAllPdfFromDir(mainDir)
-                .then((pdfList) =>
-                    pdfList.filter((pdf) => pdf.endsWith(".pdf"))
-                )
-                .then(async (pdfList) => cacheAllPdfsInDir(pdfList))
-                .then(() => {
-                    recachingTotal = 0;
-                    recachingCurrent = 0;
-                    recacheRunning = false;
-                })
-                .catch((err) => console.log(err.message))
-        );
+
+    /** @type {boolean} */
+    const recachingSuccess = await handleRecachingProcess();
+
+    console.log("recaching done (after handleRecachingProcess part)");
+
+    if (recachingSuccess) {
+        res.status(200).send("Recaching completed");
+    } else {
+        res.status(500).send("Recaching failed");
+    }
 });
+
+/**
+ *
+ * Wraps the recaching process in a promise.
+ *
+ * @returns Promise<boolean>
+ */
+async function handleRecachingProcess() {
+    await dropDatabaseTable(db)
+        .then(async () => await createDatabaseTable(db))
+        .then(async () => await fetchAllPdfFromDir(mainDir))
+        .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
+        .then((pdfList) => {
+            console.log("pdfList: " + pdfList);
+            return pdfList;
+        })
+        .then(
+            async (pdfList) =>
+                await cacheAllPdfsInDir(pdfList, writePdfDataToDatabase)
+        )
+        .then(() => {
+            recachingTotal = 0;
+            recachingCurrent = 0;
+            recacheRunning = false;
+        })
+        .catch((err) => console.log(err.message));
+
+    return true;
+}
 
 app.get("/api/v1/recache", (req, res) => {
     if (recacheRunning) {
@@ -174,10 +173,10 @@ app.get("/api/v1/recache", (req, res) => {
 });
 
 app.post("/api/v1/folder-path", (req, res) => {
-    console.log(req.body);
+    // console.log(req.body);
     fs.access(req.body.path, fs.constants.R_OK, (err) => {
         if (err) {
-            console.log("path not found");
+            console.log("pathh not found");
             res.status(404).send({ error: "Path not found" });
         } else {
             mainDir = req.body.path;
@@ -190,26 +189,20 @@ app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
 });
 
-async function getDbRowSize() {
-    return new Promise((resolve, reject) => {
-        db.get("SELECT COUNT(*) FROM pdfs;", (err, row) => {
-            if (err) {
-                reject(err);
-            }
-            resolve(row["COUNT(*)"]);
-        });
-    });
-}
-
-await createDatabaseTable(db)
+createDatabaseTable(db)
     .then(async () => await fetchAllPdfFromDir(mainDir))
     .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
     .then(async (pdfList) => {
-        const dbRowSize = await getDbRowSize();
+        const dbRowSize = await getDbRowSize(db);
+        console.log("dbRowSize: " + dbRowSize);
+        console.log("pdfList.length: " + pdfList.length);
         if (dbRowSize === pdfList.length) {
             throw new Error("No new PDFs to cache");
         }
         return pdfList;
     })
-    .then(async (pdfList) => cacheAllPdfsInDir(pdfList))
+    .then(
+        async (pdfList) =>
+            await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase)
+    )
     .catch((err) => console.log(err.message));

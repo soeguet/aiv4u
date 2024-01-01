@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!response.ok) {
                     throw response;
                 }
+                console.log("recaching request response ok");
             })
             .catch((error) => {
                 if (error.status === 404) {
@@ -53,7 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log(jsonStatus);
 
             if (jsonStatus.status === "running") {
-                statusFieldDiv.classList.remove("text-warning");
                 statusFieldDiv.innerHTML =
                     "recaching.. (" +
                     jsonStatus.current +
@@ -107,12 +107,22 @@ document.addEventListener("DOMContentLoaded", () => {
     function retrievePathToPdfs() {
         new Promise((_, reject) => {
             fetch("http://localhost:3000/api/v1/folder-path")
+                .then((response) => {
+                    if (!response.ok) {
+                        throw response;
+                    }
+                    return response;
+                })
                 .then((response) => response.json())
                 .then((data) => {
                     pathField.value = data.path;
                     newPathField.value = data.path;
+
                 })
                 .catch((error) => {
+                    statusFieldDiv.classList.add("text-danger");
+                    statusFieldDiv.innerHTML = "error - server might not be ready or running";
+
                     reject(error);
                 });
         });
@@ -148,10 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         data.status != undefined &&
                         data.status === "no results"
                     ) {
-                        statusFieldDiv.innerHTML =
-                            data.total +
-                            " results. you should recache your database.";
-                        throw new Error("no results");
+                        throw new CustomError(data.total, "no results");
                     }
 
                     return data;
@@ -166,19 +173,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     const timerField = document.getElementById("timer");
                     timerField.textContent = `${duration} ms`;
-                    statusFieldDiv.classList.remove("text-danger");
+                    statusFieldDiv.classList = "";
                     statusFieldDiv.innerHTML = `${data.length} results`;
                 })
                 .catch((error) => {
-                    if (error.message === "no results") {
-                        statusFieldDiv.innerHTML =
-                            "no results. db size: " + statusFieldDiv.innerHTML;
-                    } else {
-                        statusFieldDiv.innerHTML = "error";
-                    }
+                    if (error instanceof CustomError) {
 
-                    statusFieldDiv.classList.add("text-danger");
-                    console.error("Error:", error);
+                        if (error.data === 0) {
+                            statusFieldDiv.classList.add("text-warning");
+                            statusFieldDiv.innerHTML =
+                                error.message +
+                                ". your database is empty. you should recache.";
+                        } else {
+                            statusFieldDiv.classList.add("text-primary");
+                            statusFieldDiv.innerHTML = `no matches. your database contains ${error.data} results in total. try changing your search query.`;
+                        }
+                    }
                 });
         }
     }
@@ -215,12 +225,18 @@ document.addEventListener("DOMContentLoaded", () => {
             Object.entries(entry).forEach(([key, value]) => {
                 let displayValue = value;
 
+                const td = document.createElement("td");
+
                 if (key === "text") {
-                    displayValue = value.substring(0, 15) + "...";
+                    td.innerHTML =
+                        "<a href=" +
+                        pathField.value +
+                        entry.name +
+                        " target='_blank'>preview</a>";
+                } else {
+                    td.textContent = displayValue;
                 }
 
-                const td = document.createElement("td");
-                td.textContent = displayValue;
                 row.appendChild(td);
             });
             tbody.appendChild(row);
@@ -242,10 +258,17 @@ document.addEventListener("DOMContentLoaded", () => {
  */
 function debounceBackendRequest(func, delay) {
     let timeoutId;
-    return function() {
+    return function () {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
             func.apply(this, arguments);
         }, delay);
     };
+}
+
+class CustomError extends Error {
+    constructor(data, message) {
+        super(`Error: ${message}`);
+        this.data = data;
+    }
 }

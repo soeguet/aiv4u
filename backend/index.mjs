@@ -13,7 +13,6 @@ import {
 
 const db = new sqlite3.Database("./myDB.db");
 const app = express();
-const port = 3000;
 let recacheRunning = false;
 let recachingCurrent = 0;
 let recachingTotal = 0;
@@ -72,7 +71,7 @@ async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
 // query search terms from frontend
 app.post("/api/v1/search", (req, res) => {
     /** @type {String[]} */
-    let terms = req.body.query.split(" ");
+    const terms = req.body.query.split(" ");
     /** @type {String} */
     let query = "SELECT * FROM pdfs WHERE ";
     /** @type {String[]} */
@@ -147,7 +146,7 @@ async function handleRecachingProcess() {
         })
         .then(
             async (pdfList) =>
-                await cacheAllPdfsInDir(pdfList, writePdfDataToDatabase)
+                await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase)
         )
         .then(() => {
             recachingTotal = 0;
@@ -185,24 +184,22 @@ app.post("/api/v1/folder-path", (req, res) => {
     });
 });
 
-app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`);
-});
-
-createDatabaseTable(db)
-    .then(async () => await fetchAllPdfFromDir(mainDir))
-    .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
-    .then(async (pdfList) => {
-        const dbRowSize = await getDbRowSize(db);
-        console.log("dbRowSize: " + dbRowSize);
-        console.log("pdfList.length: " + pdfList.length);
-        if (dbRowSize === pdfList.length) {
-            throw new Error("No new PDFs to cache");
-        }
-        return pdfList;
-    })
-    .then(
-        async (pdfList) =>
-            await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase)
-    )
-    .catch((err) => console.log(err.message));
+// createDatabaseTable(db)
+//     .then(async () => await fetchAllPdfFromDir(mainDir))
+//     .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
+//     .then(async (pdfList) => {
+//         const dbRowSize = await getDbRowSize(db);
+//         console.log("dbRowSize: " + dbRowSize);
+//         console.log("pdfList.length: " + pdfList.length);
+//         if (dbRowSize === pdfList.length) {
+//             throw new Error("No new PDFs to cache");
+//         }
+//         return pdfList;
+//     })
+//     .then(
+//         async (pdfList) =>
+//             await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase)
+//     )
+//     .catch((err) => console.log(err.message));
+//
+export default app;

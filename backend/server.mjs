@@ -6,14 +6,13 @@ import db, {
 import app, {
     cacheAllPdfsInDir,
     fetchAllPdfFromDir,
-    mainDir,
 } from "./index.mjs";
 
 const port = 3000;
 
 // main initialization bloack
 createDatabaseTable(db)
-    .then(async () => await fetchAllPdfFromDir(mainDir))
+    .then(async () => await fetchAllPdfFromDir())
     .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
     .then(async (pdfList) => {
         const dbRowSize = await getDbRowSize(db);

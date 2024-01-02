@@ -4,9 +4,12 @@
     "description": "",
     "main": "./backend/server.mjs",
     "type": "module",
+    "target": "esnext",
     "scripts": {
-        "start": "node --inspect ./backend/server.mjs",
-        "test": "npx vitest"
+        "start-backend": "node ./backend/server.mjs",
+        "start-frontend": "http-server ./frontend -p 8080",
+        "start": "concurrently \"npm run start-backend\" \"npm run start-frontend\"",
+        "test": "vitest"
     },
     "keywords": [],
     "author": "soeguet",
@@ -18,6 +21,7 @@
         "sqlite3": "^5.1.6"
     },
     "devDependencies": {
+        "concurrently": "^8.2.2",
         "eslint": "^8.56.0",
         "mock-fs": "^5.2.0",
         "supertest": "^6.3.3",

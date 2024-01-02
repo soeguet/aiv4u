@@ -17,7 +17,7 @@ describe("fetchAllPdfFromDir", () => {
     });
 
     it("should include PDF files", async () => {
-        const files = await fetchAllPdfFromDir("testDir");
+        const files = await fetchAllPdfFromDir();
         expect(files).toContain("file1.pdf");
         expect(files).toContain("file3.pdf");
         expect(files).not.toContain("file2.txt");

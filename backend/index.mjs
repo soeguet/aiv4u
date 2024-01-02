@@ -10,15 +10,12 @@ import {
     getDbRowSize,
     writePdfDataToDatabase,
 } from "./database.mjs";
+import { loadUserPath, saveUserPath } from "./user-path.mjs";
 
 const app = express();
 let recacheRunning = false;
 let recachingCurrent = 0;
 let recachingTotal = 0;
-
-let mainDir = "/home/soeguet/Downloads/";
-
-export { mainDir };
 
 // middleware setup
 app.use(cors());
@@ -27,11 +24,12 @@ app.use(express.json());
 /**
  *
  * Fetches all PDF names from selected Folder.
- * @param {String} dir
  * @returns Promise<string[]>
  */
-export async function fetchAllPdfFromDir(dir) {
-    return fs.readdirSync(dir);
+export async function fetchAllPdfFromDir() {
+
+    const mainDir = await loadUserPath();
+    return fs.readdirSync(mainDir);
 }
 
 // TODO check if folder is empty
@@ -39,19 +37,19 @@ export async function fetchAllPdfFromDir(dir) {
 /**
  *
  * Caches all PDFs in selected Folder.
- * @param {String} mainDir
  * @param {import('sqlite3').Database} db
  * @param {Array<String>} pdfList
  * @param {Function} writePdfToDatabaseFn
  */
 export async function cacheAllPdfsInDir(
-    mainDir,
     db,
     pdfList,
     writePdfToDatabaseFn
 ) {
     console.log("start caching all PDFs");
     console.log("pdfList: " + pdfList.length);
+
+    const mainDir = await loadUserPath();
 
     for (const pdf of pdfList) {
         try {
@@ -117,7 +115,8 @@ app.post("/api/v1/search", (req, res) => {
     });
 });
 
-app.get("/api/v1/folder-path", (_, res) => {
+app.get("/api/v1/folder-path", async(_, res) => {
+    let mainDir = await loadUserPath();
     res.json({ path: mainDir });
 });
 
@@ -145,7 +144,7 @@ app.post("/api/v1/recache", async (req, res) => {
 async function handleRecachingProcess() {
     await dropDatabaseTable(db)
         .then(async () => await createDatabaseTable(db))
-        .then(async () => await fetchAllPdfFromDir(mainDir))
+        .then(async () => await fetchAllPdfFromDir())
         .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
         .then((pdfList) => {
             console.log("pdfList: " + pdfList);
@@ -154,7 +153,6 @@ async function handleRecachingProcess() {
         .then(
             async (pdfList) =>
                 await cacheAllPdfsInDir(
-                    mainDir,
                     db,
                     pdfList,
                     writePdfDataToDatabase
@@ -184,14 +182,13 @@ app.get("/api/v1/recache", (req, res) => {
 });
 
 app.post("/api/v1/folder-path", (req, res) => {
-    // console.log(req.body);
     fs.access(req.body.path, fs.constants.R_OK, (err) => {
         if (err) {
-            console.log("pathh not found");
+            console.log("path not found");
             res.status(404).send({ error: "Path not found" });
         } else {
-            mainDir = req.body.path;
-            res.json({ path: mainDir, status: "ok" });
+            saveUserPath(req.body.path);
+            res.json({ path: req.body.path, status: "ok" });
         }
     });
 });

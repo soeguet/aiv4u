@@ -27,7 +27,6 @@ createDatabaseTable(db)
     .then(
         async (pdfList) =>
             await cacheAllPdfsInDir(
-                mainDir,
                 db,
                 pdfList,
                 writePdfDataToDatabase

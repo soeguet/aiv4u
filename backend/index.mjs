@@ -18,30 +18,26 @@ let recachingCurrent = 0;
 let recachingTotal = 0;
 
 // middleware setup
-app.use((_, res, next) => {
-    // set the right header for utf-8 encoding
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    next();
-});
 app.use(cors());
 app.use(express.json());
 app.use(express.static("./frontend/"));
 
 /**
- *
  * Fetches all PDF names from selected Folder.
+ *
+ * @param {string} mainDir
+ *
  * @returns Promise<string[]>
  */
-export async function fetchAllPdfFromDir() {
-    const mainDir = await loadUserPath();
-    app.use("/pdf", express.static(mainDir));
+export async function fetchAllPdfFromDir(mainDir) {
+    // const mainDir = await loadUserPath();
+    // app.use("/pdf", express.static(mainDir));
     return fs.readdirSync(mainDir);
 }
 
 // TODO check if folder is empty
 
 /**
- *
  * Caches all PDFs in selected Folder.
  * @param {import('sqlite3').Database} db
  * @param {Array<String>} pdfList
@@ -51,27 +47,31 @@ export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
     console.log("start caching all PDFs");
     console.log("pdfList: " + pdfList.length);
 
-    const mainDir = await loadUserPath();
+    try {
+        const mainDir = await loadUserPath();
 
-    for (const pdf of pdfList) {
-        try {
-            let dataBuffer = fs.readFileSync(mainDir + pdf);
-            let bufferedPdf = await PDF(dataBuffer);
+        for (const pdf of pdfList) {
+            try {
+                let dataBuffer = fs.readFileSync(mainDir + pdf);
+                let bufferedPdf = await PDF(dataBuffer);
 
-            if (recacheRunning) {
-                recachingCurrent++;
+                if (recacheRunning) {
+                    recachingCurrent++;
+                }
+
+                const pdfEntry = {
+                    name: pdf,
+                    pages: bufferedPdf.numpages,
+                    text: bufferedPdf.text,
+                };
+
+                await writePdfToDatabaseFn(db, pdfEntry);
+            } catch (err) {
+                console.log("Error processing PDF " + pdf + ": " + err);
             }
-
-            const pdfEntry = {
-                name: pdf,
-                pages: bufferedPdf.numpages,
-                text: bufferedPdf.text,
-            };
-
-            await writePdfToDatabaseFn(db, pdfEntry);
-        } catch (err) {
-            console.log("Error processing PDF " + pdf + ": " + err);
         }
+    } catch (err) {
+        console.log("Error processing PDFs: " + err);
     }
 }
 
@@ -156,26 +156,23 @@ app.post("/api/v1/recache", async (req, res) => {
  * @returns Promise<boolean>
  */
 async function handleRecachingProcess() {
-    await dropDatabaseTable(db)
-        .then(async () => await createDatabaseTable(db))
-        .then(async () => await fetchAllPdfFromDir())
-        .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
-        .then((pdfList) => {
-            console.log("pdfList: " + pdfList);
-            return pdfList;
-        })
-        .then(
-            async (pdfList) =>
-                await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase)
-        )
-        .then(() => {
-            recachingTotal = 0;
-            recachingCurrent = 0;
-            recacheRunning = false;
-        })
-        .catch((err) => console.log(err.message));
+    try {
+        await dropDatabaseTable(db);
+        await createDatabaseTable(db);
 
-    return true;
+        const mainDir = await loadUserPath();
+        app.use("/pdf", express.static(mainDir));
+
+        const pdfList = await fetchAllPdfFromDir(mainDir).then((pdfList) =>
+            pdfList.filter((pdf) => pdf.endsWith(".pdf"))
+        );
+        console.log("pdfList: " + pdfList);
+        await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
+
+        return true;
+    } catch (err) {
+        throw new Error(err.message);
+    }
 }
 
 app.get("/api/v1/recache", (req, res) => {

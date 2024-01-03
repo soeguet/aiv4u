@@ -125,7 +125,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         } catch (error) {
             console.log("Error fetching recache status:", error);
-            // Behandlung von Netzwerkfehlern oder anderen Fehlern
+            statusFieldDiv.classList.add("text-danger");
+            statusFieldDiv.innerHTML = "woops. loopks like the recaching process failed";
         }
     }
 
@@ -166,7 +167,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
     });
 
+    /**
+     * initial request at backend. will ask for pdf path on local filesystem. the backend will look for a .json file on
+     * the home folder path. if said file does not exist, it will show an error message.
+     *
+     * @returns {void}
+     */
     function retrievePathToPdfs() {
+
         if (!statusFieldDiv) throw new Error("status field not found");
 
         new Promise((_, reject) => {
@@ -307,8 +315,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (key === "text") {
                     td.innerHTML =
-                        "<a href=" +
-                        getValueFromValueFieldInHtmlInputElement(pathField) +
+                        "<a href=/pdf/" +
                         entry.name +
                         " target='_blank'>preview</a>";
                 } else {

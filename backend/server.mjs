@@ -3,35 +3,36 @@ import db, {
     getDbRowSize,
     writePdfDataToDatabase,
 } from "./database.mjs";
-import app, {
-    cacheAllPdfsInDir,
-    fetchAllPdfFromDir,
-} from "./index.mjs";
+import app, { cacheAllPdfsInDir, fetchAllPdfFromDir } from "./index.mjs";
 
 const port = 3000;
 
-// main initialization block
-createDatabaseTable(db)
-    .then(async () => await fetchAllPdfFromDir())
-    .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))
-    .then(async (pdfList) => {
+/**
+ * Wrapper for the main initialization.
+ */
+async function main() {
+    try {
+        await createDatabaseTable(db);
+        const pdfList = (await fetchAllPdfFromDir()).filter((pdf) =>
+            pdf.endsWith(".pdf")
+        );
+
         const dbRowSize = await getDbRowSize(db);
         console.log("dbRowSize: " + dbRowSize);
         console.log("pdfList.length: " + pdfList.length);
+
         if (dbRowSize === pdfList.length) {
-            throw new Error("No new PDFs to cache");
+            return;
         }
-        return pdfList;
-    })
-    .then(
-        async (pdfList) =>
-            await cacheAllPdfsInDir(
-                db,
-                pdfList,
-                writePdfDataToDatabase
-            )
-    )
-    .catch((err) => console.log(err.message));
+
+        await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
+    } catch (err) {
+        // TODO specify error handling
+        throw new Error(err.message);
+    }
+}
+
+main();
 
 // open server port
 app.listen(port, () => {

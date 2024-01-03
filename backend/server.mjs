@@ -10,7 +10,7 @@ import app, {
 
 const port = 3000;
 
-// main initialization bloack
+// main initialization block
 createDatabaseTable(db)
     .then(async () => await fetchAllPdfFromDir())
     .then((pdfList) => pdfList.filter((pdf) => pdf.endsWith(".pdf")))

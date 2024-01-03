@@ -6,13 +6,12 @@
     "type": "module",
     "target": "esnext",
     "scripts": {
-        "start-backend": "node ./backend/server.mjs",
-        "start-frontend": "http-server ./frontend -p 8080",
-        "start": "concurrently \"npm run start-backend\" \"npm run start-frontend\"",
+        "start": "node ./backend/server.mjs",
         "test": "vitest"
     },
     "keywords": [],
     "author": "soeguet",
+    "private": true,
     "license": "ISC",
     "dependencies": {
         "cors": "^2.8.5",
@@ -21,7 +20,6 @@
         "sqlite3": "^5.1.6"
     },
     "devDependencies": {
-        "concurrently": "^8.2.2",
         "eslint": "^8.56.0",
         "mock-fs": "^5.2.0",
         "supertest": "^6.3.3",

@@ -18,8 +18,14 @@ let recachingCurrent = 0;
 let recachingTotal = 0;
 
 // middleware setup
+app.use((_, res, next) => {
+    // set the right header for utf-8 encoding
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    next();
+});
 app.use(cors());
 app.use(express.json());
+app.use(express.static("./frontend/"));
 
 /**
  *
@@ -27,8 +33,8 @@ app.use(express.json());
  * @returns Promise<string[]>
  */
 export async function fetchAllPdfFromDir() {
-
     const mainDir = await loadUserPath();
+    app.use("/pdf", express.static(mainDir));
     return fs.readdirSync(mainDir);
 }
 
@@ -41,11 +47,7 @@ export async function fetchAllPdfFromDir() {
  * @param {Array<String>} pdfList
  * @param {Function} writePdfToDatabaseFn
  */
-export async function cacheAllPdfsInDir(
-    db,
-    pdfList,
-    writePdfToDatabaseFn
-) {
+export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
     console.log("start caching all PDFs");
     console.log("pdfList: " + pdfList.length);
 
@@ -75,13 +77,13 @@ export async function cacheAllPdfsInDir(
 
 // query search terms from frontend
 app.post("/api/v1/search", (req, res) => {
-    /** @type {String[]} */
+    /** @type {string[]} */
     const terms = req.body.query.split(" ");
-    /** @type {String} */
+    /** @type {string} */
     let query = "SELECT * FROM pdfs WHERE ";
-    /** @type {String[]} */
+    /** @type {string[]} */
     let queryParams = [];
-    /** @type {String[]} */
+    /** @type {string[]} */
     let queryParts = [];
 
     // stream through all search terms and concat them to query
@@ -91,15 +93,27 @@ app.post("/api/v1/search", (req, res) => {
     });
     query += queryParts.join(" AND ");
 
-    // fire query
+    /**
+     * fires db query
+     *
+     * @param {string} query - predefined query
+     * @param {string[]} queryParams - separate query params
+     * @param {Function} callback
+     *
+     * the callback contains the following parameters:
+     * @param {Error} err - error object
+     * @param {Array<Object>} rows - array of objects from database (each row - see below)
+     * @param {number} rows[].id - pdf id
+     * @param {string} rows[].name - pdf name
+     * @param {number} rows[].pages - pdf page count
+     * @param {string} rows[].text - pdf content as string
+     */
     db.all(query, queryParams, async (err, rows) => {
         if (err) {
             console.error(err);
             res.status(500).send("internal server error");
             return;
         }
-
-        // console.log(rows);
 
         if (rows.length > 0) {
             res.json(rows);
@@ -115,7 +129,7 @@ app.post("/api/v1/search", (req, res) => {
     });
 });
 
-app.get("/api/v1/folder-path", async(_, res) => {
+app.get("/api/v1/folder-path", async (_, res) => {
     let mainDir = await loadUserPath();
     res.json({ path: mainDir });
 });
@@ -152,11 +166,7 @@ async function handleRecachingProcess() {
         })
         .then(
             async (pdfList) =>
-                await cacheAllPdfsInDir(
-                    db,
-                    pdfList,
-                    writePdfDataToDatabase
-                )
+                await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase)
         )
         .then(() => {
             recachingTotal = 0;

@@ -1,8 +1,8 @@
 /**
  * @typedef {Object} PdfEntry
- * @property {string} name - Der Name der PDF.
- * @property {number} pages - Die Anzahl der Seiten in der PDF.
- * @property {string} text - Der Text der PDF.
+ * @property {string} name - pdf name
+ * @property {number} pages - pdf page count
+ * @property {string} text - pdf content as string
  */
 
 import sqlite3 from "sqlite3";

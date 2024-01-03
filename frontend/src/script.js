@@ -1,11 +1,63 @@
-document.addEventListener("DOMContentLoaded", () => {
+/**
+ * Check if HTMLInputElement and get value.
+ * @param {HTMLElement | null} el
+ * @return {string}
+ */
+function getValueFromValueFieldInHtmlInputElement(el) {
+    if (el == null) throw new Error("el is null");
+
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        return el.value;
+    }
+
+    throw new Error(`${el} is not an HTMLInputElement`);
+}
+
+/**
+ * Check if HTMLInputElement and set value.
+ * @param {HTMLElement | null} el
+ * @param {string} value
+ */
+function setHtmlElementValue(el, value) {
+    if (el == null) throw new Error("el is null");
+
+    if (el instanceof HTMLInputElement) {
+        el.value = value;
+
+        return;
+    }
+
+    throw new Error(`${el} is not an HTMLInputElement`);
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
     const searchBox = document.getElementById("searchBox");
+
+    if (!searchBox) throw new Error("search box not found");
+
     const resultsDiv = document.getElementById("results");
+
+    if (!resultsDiv) throw new Error("results div not found");
+
     const statusFieldDiv = document.getElementById("status-field");
+
+    if (!statusFieldDiv) throw new Error("status field not found");
+
     const pathField = document.getElementById("pathInputGrid");
+
+    if (!pathField) throw new Error("path field not found");
+
     const newPathField = document.getElementById("new-path");
+
+    if (!newPathField) throw new Error("new path field not found");
+
     const savePathButton = document.getElementById("send-new-path-button");
+
+    if (!savePathButton) throw new Error("save path button not found");
+
     const recacheSpinner = document.getElementById("recache");
+
+    if (!recacheSpinner) throw new Error("recache spinner not found");
 
     recacheSpinner.addEventListener("click", () => {
         fetch("http://localhost:3000/api/v1/recache", {
@@ -18,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!response.ok) {
                     throw response;
                 }
+
                 console.log("recaching request response ok");
             })
             .catch((error) => {
@@ -39,9 +92,13 @@ document.addEventListener("DOMContentLoaded", () => {
     async function checkForRecacheStatus() {
         console.log("checking for recache status");
 
+        if (!statusFieldDiv) throw new Error("status field not found");
+
         try {
             console.log("checking for recache status");
+
             let response = await fetch("http://localhost:3000/api/v1/recache");
+
             console.log("checking for recache status");
 
             // Überprüfen Sie, ob der Fetch-Aufruf erfolgreich war
@@ -73,7 +130,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     savePathButton.addEventListener("click", () => {
-        const newPath = newPathField.value;
+        const newPath = getValueFromValueFieldInHtmlInputElement(newPathField);
+
         fetch("http://localhost:3000/api/v1/folder-path", {
             method: "POST",
             headers: {
@@ -85,11 +143,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!response.ok) {
                     throw response;
                 }
+
                 return response.json();
             })
             .then((data) => {
                 // update path field with new path
-                pathField.value = data.path;
+                setHtmlElementValue(pathField, data.path);
             })
             .catch((error) => {
                 if (error.status === 404) {
@@ -97,7 +156,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     statusFieldDiv.innerHTML =
                         "path not found, ignored request";
                     // reset path field in modal back to old value
-                    newPathField.value = pathField.value;
+                    setHtmlElementValue(
+                        newPathField,
+                        getValueFromValueFieldInHtmlInputElement(pathField)
+                    );
                 } else {
                     console.error("Error:", error);
                 }
@@ -105,28 +167,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function retrievePathToPdfs() {
+        if (!statusFieldDiv) throw new Error("status field not found");
+
         new Promise((_, reject) => {
             fetch("http://localhost:3000/api/v1/folder-path")
                 .then((response) => {
                     if (!response.ok) {
                         throw response;
                     }
+
                     return response;
                 })
                 .then((response) => response.json())
                 .then((data) => {
-                    pathField.value = data.path;
-                    newPathField.value = data.path;
-
+                    setHtmlElementValue(pathField, data.path);
+                    setHtmlElementValue(newPathField, data.path);
                 })
                 .catch((error) => {
                     statusFieldDiv.classList.add("text-danger");
-                    statusFieldDiv.innerHTML = "error - server might not be ready or running";
+                    statusFieldDiv.innerHTML =
+                        "error - server might not be ready or running";
 
                     reject(error);
                 });
         });
     }
+
     retrievePathToPdfs();
 
     searchBox.addEventListener(
@@ -138,10 +204,11 @@ document.addEventListener("DOMContentLoaded", () => {
      *
      */
     function handleSearch() {
+        if (!statusFieldDiv) throw new Error("status field not found");
+
         // measure time for fetch request
         const start = performance.now();
-
-        const query = searchBox.value;
+        const query = getValueFromValueFieldInHtmlInputElement(searchBox);
 
         if (query.length > 2) {
             // start searching at 2
@@ -170,15 +237,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     const end = performance.now();
                     // time total
                     const duration = end - start;
-
                     const timerField = document.getElementById("timer");
+
+                    if (!timerField) throw new Error("timer field not found");
+
                     timerField.textContent = `${duration} ms`;
-                    statusFieldDiv.classList = "";
+                    statusFieldDiv.className = "";
                     statusFieldDiv.innerHTML = `${data.length} results`;
                 })
                 .catch((error) => {
                     if (error instanceof CustomError) {
-
                         if (error.data === 0) {
                             statusFieldDiv.classList.add("text-warning");
                             statusFieldDiv.innerHTML =
@@ -194,25 +262,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /**
+     * Disassemble the data and display it in the results div in a table.
      *
-     * @param {String} data
+     * @param {Object[]} data - array of objects from database (each row - see below)
+     * @param {number} data[].id - pdf id
+     * @param {string} data[].name - pdf name
+     * @param {number} data[].pages - pdf page count
+     * @param {string} data[].text - pdf content as string
      */
     function displayResults(data) {
+        if (!resultsDiv) throw new Error("results div not found");
+
         //delete old entries
         resultsDiv.innerHTML = "";
 
         // create table
         const table = document.createElement("table");
+
         table.classList.add("table");
         table.classList.add("table-striped");
+
         const thead = document.createElement("thead");
         const tbody = document.createElement("tbody");
-
         // table head
         const headerRow = document.createElement("tr");
+
         if (data.length > 0) {
             Object.keys(data[0]).forEach((key) => {
                 const th = document.createElement("th");
+
                 th.textContent = key;
                 headerRow.appendChild(th);
             });
@@ -222,19 +300,20 @@ document.addEventListener("DOMContentLoaded", () => {
         // table body
         data.forEach((entry) => {
             const row = document.createElement("tr");
-            Object.entries(entry).forEach(([key, value]) => {
-                let displayValue = value;
 
+            Object.entries(entry).forEach(([key, value]) => {
+                let customValue = value;
                 const td = document.createElement("td");
 
                 if (key === "text") {
                     td.innerHTML =
                         "<a href=" +
-                        pathField.value +
+                        getValueFromValueFieldInHtmlInputElement(pathField) +
                         entry.name +
                         " target='_blank'>preview</a>";
                 } else {
-                    td.textContent = displayValue;
+                    // since value could is of type string | number
+                    td.textContent = customValue.toString();
                 }
 
                 row.appendChild(td);
@@ -252,22 +331,30 @@ document.addEventListener("DOMContentLoaded", () => {
 /**
  * trigger buffer for requests to the backend.
  *
- * @param {String} func
+ * @param {function(Event):void} func
  * @param {number} delay
- * @return {function}
+ * @return {function(Event):void}
  */
 function debounceBackendRequest(func, delay) {
+    /**@type {NodeJS.Timeout}**/
     let timeoutId;
-    return function () {
+
+    /**
+     * @param {any} args
+     */
+    return /**@this {any}**/ function (...args) {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
-            func.apply(this, arguments);
+            func.apply(this, args);
         }, delay);
     };
 }
 
+/**
+ * Custom Error class to handle search result errors.
+ */
 class CustomError extends Error {
-    constructor(data, message) {
+    constructor(/**@type {number}**/ data, /**@type {string}**/ message) {
         super(`Error: ${message}`);
         this.data = data;
     }

@@ -11,11 +11,14 @@ import {
     writePdfDataToDatabase,
 } from "./database.mjs";
 import { loadUserPath, saveUserPath } from "./user-path.mjs";
+import path from "path";
+import process from "process";
 
 const app = express();
 let recacheRunning = false;
 let recachingCurrent = 0;
 let recachingTotal = 0;
+let nextThreshold = recachingTotal / 10;
 
 // middleware setup
 app.use(cors());
@@ -35,6 +38,55 @@ export async function fetchAllPdfFromDir(mainDir) {
     return fs.readdirSync(mainDir);
 }
 
+function printProgressToStdout() {
+    if (recachingCurrent === 0) {
+        console.log("recaching started");
+        process.stdout.write("0%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 0.1) {
+        process.stdout.write("10%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 0.2) {
+        process.stdout.write("20%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 0.3) {
+        process.stdout.write("30%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 0.4) {
+        process.stdout.write("40%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 0.5) {
+        process.stdout.write("50%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 0.6) {
+        process.stdout.write("60%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 0.7) {
+        process.stdout.write("70%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 0.8) {
+        process.stdout.write("80%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 0.9) {
+        process.stdout.write("90%");
+        return;
+    }
+    if (recachingCurrent / recachingTotal === 1) {
+        process.stdout.write("100%");
+        return;
+    }
+    process.stdout.write(".");
+}
+
 // TODO check if folder is empty
 
 /**
@@ -51,13 +103,13 @@ export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
         const mainDir = await loadUserPath();
 
         for (const pdf of pdfList) {
+            printProgressToStdout();
+
             try {
                 let dataBuffer = fs.readFileSync(mainDir + pdf);
                 let bufferedPdf = await PDF(dataBuffer);
 
-                if (recacheRunning) {
-                    recachingCurrent++;
-                }
+                recachingCurrent++;
 
                 const pdfEntry = {
                     name: pdf,
@@ -166,7 +218,6 @@ async function handleRecachingProcess() {
         const pdfList = await fetchAllPdfFromDir(mainDir).then((pdfList) =>
             pdfList.filter((pdf) => pdf.endsWith(".pdf"))
         );
-        console.log("pdfList: " + pdfList);
         await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
 
         return true;
@@ -176,6 +227,7 @@ async function handleRecachingProcess() {
 }
 
 app.get("/api/v1/recache", (req, res) => {
+    console.log("recaching status requested - get request");
     if (recacheRunning) {
         console.log("recaching running");
         res.json({
@@ -189,13 +241,16 @@ app.get("/api/v1/recache", (req, res) => {
 });
 
 app.post("/api/v1/folder-path", (req, res) => {
-    fs.access(req.body.path, fs.constants.R_OK, (err) => {
+    // first check if path is valid
+    fs.access(req.body.path, fs.constants.R_OK, async (err) => {
         if (err) {
+            // throw error if not
             console.log("path not found");
             res.status(404).send({ error: "Path not found" });
         } else {
-            saveUserPath(req.body.path);
-            res.json({ path: req.body.path, status: "ok" });
+            // if ok, save path @backend
+            const savedPath = await saveUserPath(req.body.path);
+            res.json({ path: savedPath, status: "ok" });
         }
     });
 });

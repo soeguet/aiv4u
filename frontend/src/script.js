@@ -90,16 +90,14 @@ document.addEventListener("DOMContentLoaded", async () => {
      * check if recaching is done - recursive
      */
     async function checkForRecacheStatus() {
+        // TODO alter this process
+
         console.log("checking for recache status");
 
         if (!statusFieldDiv) throw new Error("status field not found");
 
         try {
-            console.log("checking for recache status");
-
             let response = await fetch("http://localhost:3000/api/v1/recache");
-
-            console.log("checking for recache status");
 
             // Überprüfen Sie, ob der Fetch-Aufruf erfolgreich war
             if (!response.ok) {
@@ -110,23 +108,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log(jsonStatus);
 
-            if (jsonStatus.status === "running") {
-                statusFieldDiv.innerHTML =
-                    "recaching.. (" +
-                    jsonStatus.current +
-                    "/" +
-                    jsonStatus.total +
-                    ")";
-                setTimeout(checkForRecacheStatus, 3000);
-            } else {
-                console.log("recaching done");
-                statusFieldDiv.classList.add("text-success");
-                statusFieldDiv.innerHTML = "recaching done";
-            }
+            console.log("recaching done");
+            statusFieldDiv.classList.add("text-success");
+            statusFieldDiv.innerHTML = "recaching done";
+
         } catch (error) {
             console.log("Error fetching recache status:", error);
             statusFieldDiv.classList.add("text-danger");
-            statusFieldDiv.innerHTML = "woops. loopks like the recaching process failed";
+            statusFieldDiv.innerHTML =
+                "woops. loopks like the recaching process failed";
         }
     }
 
@@ -174,7 +164,6 @@ document.addEventListener("DOMContentLoaded", async () => {
      * @returns {void}
      */
     function retrievePathToPdfs() {
-
         if (!statusFieldDiv) throw new Error("status field not found");
 
         new Promise((_, reject) => {

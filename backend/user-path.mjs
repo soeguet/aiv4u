@@ -1,6 +1,7 @@
 import { existsSync, promises as fs } from "fs";
 import os from "os";
 import path from "path";
+import process from "process";
 
 const configFile = path.join(os.homedir(), ".aiv4u.json");
 
@@ -9,8 +10,11 @@ const configFile = path.join(os.homedir(), ".aiv4u.json");
  * @param {string} userPath
  */
 export async function saveUserPath(userPath) {
-    const config = { userPath };
+    let fullPath = ensureTrailingSlash(userPath);
+    const config = { fullPath };
     await fs.writeFile(configFile, JSON.stringify(config));
+
+    return fullPath;
 }
 
 /**
@@ -19,14 +23,28 @@ export async function saveUserPath(userPath) {
  */
 export async function loadUserPath() {
     //check if file exists
-
     const fileExists = existsSync(configFile);
 
     if (fileExists) {
         const config = JSON.parse(await fs.readFile(configFile, "utf8"));
 
-        return config.userPath;
+        return ensureTrailingSlash(config.fullPath);
     } else {
         return "";
     }
+}
+
+/**
+ * Ensure that the path has a trailing slash.
+ * @param {string} path
+ * @returns {string} path
+ */
+function ensureTrailingSlash(path) {
+    if (path.endsWith("/") || path.endsWith("\\")) {
+        return path;
+    }
+
+    const separator = process.platform === "win32" ? "\\" : "/";
+
+    return path + separator;
 }

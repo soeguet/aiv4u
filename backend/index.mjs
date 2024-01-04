@@ -11,14 +11,12 @@ import {
     writePdfDataToDatabase,
 } from "./database.mjs";
 import { loadUserPath, saveUserPath } from "./user-path.mjs";
-import path from "path";
 import process from "process";
 
 const app = express();
-let recacheRunning = false;
 let recachingCurrent = 0;
 let recachingTotal = 0;
-let nextThreshold = recachingTotal / 10;
+let factor = 0;
 
 // middleware setup
 app.use(cors());
@@ -38,55 +36,6 @@ export async function fetchAllPdfFromDir(mainDir) {
     return fs.readdirSync(mainDir);
 }
 
-function printProgressToStdout() {
-    if (recachingCurrent === 0) {
-        console.log("recaching started");
-        process.stdout.write("0%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 0.1) {
-        process.stdout.write("10%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 0.2) {
-        process.stdout.write("20%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 0.3) {
-        process.stdout.write("30%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 0.4) {
-        process.stdout.write("40%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 0.5) {
-        process.stdout.write("50%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 0.6) {
-        process.stdout.write("60%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 0.7) {
-        process.stdout.write("70%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 0.8) {
-        process.stdout.write("80%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 0.9) {
-        process.stdout.write("90%");
-        return;
-    }
-    if (recachingCurrent / recachingTotal === 1) {
-        process.stdout.write("100%");
-        return;
-    }
-    process.stdout.write(".");
-}
-
 // TODO check if folder is empty
 
 /**
@@ -97,33 +46,38 @@ function printProgressToStdout() {
  */
 export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
     console.log("start caching all PDFs");
-    console.log("pdfList: " + pdfList.length);
 
-    try {
-        const mainDir = await loadUserPath();
+    recachingTotal = pdfList.length;
+    recachingCurrent = 0;
+    factor = 0;
 
-        for (const pdf of pdfList) {
-            printProgressToStdout();
+    const mainDir = await loadUserPath();
 
-            try {
-                let dataBuffer = fs.readFileSync(mainDir + pdf);
-                let bufferedPdf = await PDF(dataBuffer);
+    for (const pdf of pdfList) {
+        recachingCurrent++;
 
-                recachingCurrent++;
+        try {
+            let dataBuffer = fs.readFileSync(mainDir + pdf);
+            let bufferedPdf = await PDF(dataBuffer);
 
-                const pdfEntry = {
-                    name: pdf,
-                    pages: bufferedPdf.numpages,
-                    text: bufferedPdf.text,
-                };
+            const pdfEntry = {
+                name: pdf,
+                pages: bufferedPdf.numpages,
+                text: bufferedPdf.text,
+            };
 
-                await writePdfToDatabaseFn(db, pdfEntry);
-            } catch (err) {
-                console.log("Error processing PDF " + pdf + ": " + err);
-            }
+            await writePdfToDatabaseFn(db, pdfEntry);
+        } catch (err) {
+            console.log("Error processing PDF " + pdf + ": " + err);
         }
-    } catch (err) {
-        console.log("Error processing PDFs: " + err);
+
+        let progress = (recachingCurrent / recachingTotal) * 100;
+        if (progress > factor) {
+            factor += 10;
+            console.log(
+                "progress: " + Math.round(progress) + "%, recaching status: " + recachingCurrent + "/" + recachingTotal
+            );
+        }
     }
 }
 

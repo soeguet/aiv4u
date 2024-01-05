@@ -60,6 +60,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!recacheSpinner) throw new Error("recache spinner not found");
 
     recacheSpinner.addEventListener("click", () => {
+        recacheSpinner.classList.add("recaching");
+
         fetch("http://localhost:3000/api/v1/recache", {
             method: "POST",
             headers: {
@@ -111,13 +113,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.log("recaching done");
             statusFieldDiv.classList.add("text-success");
             statusFieldDiv.innerHTML = "recaching done";
-
         } catch (error) {
             console.log("Error fetching recache status:", error);
             statusFieldDiv.classList.add("text-danger");
             statusFieldDiv.innerHTML =
                 "woops. loopks like the recaching process failed";
         }
+
+        if (!recacheSpinner) {
+            throw new Error("recache spinner not found");
+        }
+
+        recacheSpinner.classList.remove("recaching");
     }
 
     savePathButton.addEventListener("click", () => {

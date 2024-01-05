@@ -75,8 +75,15 @@ export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
         if (progress > factor) {
             factor += 10;
             console.log(
-                "progress: " + Math.round(progress) + "%, recaching status: " + recachingCurrent + "/" + recachingTotal
+                "\nprogress: " +
+                Math.round(progress) +
+                "%, recaching status: " +
+                recachingCurrent +
+                "/" +
+                recachingTotal
             );
+        } else if (recachingCurrent % 10 == 0) {
+            process.stdout.write(".");
         }
     }
 }
@@ -182,16 +189,7 @@ async function handleRecachingProcess() {
 
 app.get("/api/v1/recache", (req, res) => {
     console.log("recaching status requested - get request");
-    if (recacheRunning) {
-        console.log("recaching running");
-        res.json({
-            status: "running",
-            current: recachingCurrent,
-            total: recachingTotal,
-        });
-    } else {
-        res.json({ status: "done" });
-    }
+    res.json({ status: "done" });
 });
 
 app.post("/api/v1/folder-path", (req, res) => {

@@ -1,7 +1,6 @@
 import express from "express";
 import fs from "fs";
 import PDF from "pdf-parse-fork";
-import cors from "cors";
 import db from "./database.mjs";
 
 import {
@@ -19,7 +18,7 @@ let recachingTotal = 0;
 let factor = 0;
 
 // middleware setup
-app.use(cors());
+// app.use(cors());
 app.use(express.json());
 app.use(express.static("./frontend/"));
 
@@ -147,7 +146,7 @@ app.get("/api/v1/folder-path", async (_, res) => {
     res.json({ path: mainDir });
 });
 
-app.post("/api/v1/recache", async (req, res) => {
+app.post("/api/v1/recache", async (_, res) => {
     console.log("recaching started");
 
     /** @type {boolean} */
@@ -169,26 +168,21 @@ app.post("/api/v1/recache", async (req, res) => {
  * @returns Promise<boolean>
  */
 async function handleRecachingProcess() {
-    try {
-        await dropDatabaseTable(db);
-        await createDatabaseTable(db);
+    await dropDatabaseTable(db);
+    await createDatabaseTable(db);
 
-        const mainDir = await loadUserPath();
-        app.use("/pdf", express.static(mainDir));
+    const mainDir = await loadUserPath();
+    app.use("/pdf", express.static(mainDir));
 
-        const pdfList = await fetchAllPdfFromDir(mainDir).then((pdfList) =>
-            pdfList.filter((pdf) => pdf.endsWith(".pdf"))
-        );
-        await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
+    const pdfList = await fetchAllPdfFromDir(mainDir).then((pdfList) =>
+        pdfList.filter((pdf) => pdf.endsWith(".pdf"))
+    );
+    await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
 
-        return true;
-    } catch (err) {
-        throw new Error(err.message);
-    }
+    return true;
 }
 
-app.get("/api/v1/recache", (req, res) => {
-    console.log("recaching status requested - get request");
+app.get("/api/v1/recache", (_, res) => {
     res.json({ status: "done" });
 });
 

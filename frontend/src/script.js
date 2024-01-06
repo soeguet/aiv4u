@@ -63,6 +63,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     recacheSpinner.addEventListener("click", () => {
         recacheSpinner.classList.add("recaching");
+        statusFieldDiv.classList.add("text-warning");
+        statusFieldDiv.innerHTML = "recaching...";
         recacheDisableCandidates.forEach((element) => {
             element.setAttribute("disabled", "disabled");
         });

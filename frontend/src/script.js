@@ -59,8 +59,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!recacheSpinner) throw new Error("recache spinner not found");
 
+    const recacheDisableCandidates = [searchBox, pathField];
+
     recacheSpinner.addEventListener("click", () => {
         recacheSpinner.classList.add("recaching");
+        recacheDisableCandidates.forEach((element) => {
+            element.setAttribute("disabled", "disabled");
+        });
 
         fetch("http://localhost:3000/api/v1/recache", {
             method: "POST",
@@ -117,7 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.log("Error fetching recache status:", error);
             statusFieldDiv.classList.add("text-danger");
             statusFieldDiv.innerHTML =
-                "woops. loopks like the recaching process failed";
+                "woops. looks like the recaching process failed";
         }
 
         if (!recacheSpinner) {
@@ -125,6 +130,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         recacheSpinner.classList.remove("recaching");
+        recacheDisableCandidates.forEach((element) => {
+            element.removeAttribute("disabled");
+        });
     }
 
     savePathButton.addEventListener("click", () => {

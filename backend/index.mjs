@@ -1,5 +1,6 @@
 import express from "express";
 import fs from "fs";
+// @ts-ignore
 import PDF from "pdf-parse-fork";
 import db from "./database.mjs";
 
@@ -18,7 +19,6 @@ let recachingTotal = 0;
 let factor = 0;
 
 // middleware setup
-// app.use(cors());
 app.use(express.json());
 app.use(express.static("./frontend/"));
 
@@ -30,8 +30,6 @@ app.use(express.static("./frontend/"));
  * @returns Promise<string[]>
  */
 export async function fetchAllPdfFromDir(mainDir) {
-    // const mainDir = await loadUserPath();
-    // app.use("/pdf", express.static(mainDir));
     return fs.readdirSync(mainDir);
 }
 
@@ -40,15 +38,11 @@ export async function fetchAllPdfFromDir(mainDir) {
 /**
  * Caches all PDFs in selected Folder.
  * @param {import('sqlite3').Database} db
- * @param {Array<String>} pdfList
+ * @param {string[]} pdfList
  * @param {Function} writePdfToDatabaseFn
  */
 export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
-    console.log("start caching all PDFs");
-
-    recachingTotal = pdfList.length;
-    recachingCurrent = 0;
-    factor = 0;
+    resetCacheValues(pdfList);
 
     const mainDir = await loadUserPath();
 
@@ -75,11 +69,11 @@ export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
             factor += 10;
             console.log(
                 "\nprogress: " +
-                Math.round(progress) +
-                "%, recaching status: " +
-                recachingCurrent +
-                "/" +
-                recachingTotal
+                    Math.round(progress) +
+                    "%, recaching status: " +
+                    recachingCurrent +
+                    "/" +
+                    recachingTotal
             );
         } else if (recachingCurrent % 10 == 0) {
             process.stdout.write(".");
@@ -160,6 +154,17 @@ app.post("/api/v1/recache", async (_, res) => {
         res.status(500).send("Recaching failed");
     }
 });
+
+/**
+ * Reset module variables for recaching process. They will be used to calculate the progress and print to stdout.
+ *
+ * @param {string[]} pdfList
+ */
+function resetCacheValues(pdfList) {
+    recachingTotal = pdfList.length;
+    recachingCurrent = 0;
+    factor = 0;
+}
 
 /**
  *

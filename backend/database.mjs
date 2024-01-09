@@ -15,7 +15,6 @@ const db = new sqlite3.Database("./myDB.db");
  * @param {import('sqlite3').Database} db - The SQLite3 database instance.
  */
 export async function dropDatabaseTable(db) {
-    console.log("dropping table");
     db.serialize(() => {
         db.run("DROP TABLE IF EXISTS pdfs;");
     });
@@ -41,7 +40,6 @@ export async function writePdfDataToDatabase(db, pdfEntry) {
             }
         );
     });
-    // console.log(`wrote ${pdfDict.name} to database`);
 }
 
 /**

@@ -1,6 +1,6 @@
-import { existsSync, promises as fs } from "fs";
-import os from "os";
-import path from "path";
+import { existsSync, promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import process from "process";
 
 const configFile = path.join(os.homedir(), ".aiv4u.json");
@@ -18,7 +18,7 @@ export async function saveUserPath(userPath) {
 }
 
 /**
- * Load the user chosen directory path from a .json file.
+ * Load the user chosen directory path from a .json file. If the file does not exist, return the user home directory.
  * @returns {Promise<string>} userPath
  */
 export async function loadUserPath() {
@@ -30,7 +30,7 @@ export async function loadUserPath() {
 
         return ensureTrailingSlash(config.fullPath);
     } else {
-        return "";
+        return os.homedir();
     }
 }
 

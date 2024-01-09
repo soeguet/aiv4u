@@ -99,10 +99,6 @@ document.addEventListener("DOMContentLoaded", async () => {
      * check if recaching is done - recursive
      */
     async function checkForRecacheStatus() {
-        // TODO alter this process
-
-        console.log("checking for recache status");
-
         if (!statusFieldDiv) throw new Error("status field not found");
 
         try {
@@ -117,7 +113,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log(jsonStatus);
 
-            console.log("recaching done");
             statusFieldDiv.classList.add("text-success");
             statusFieldDiv.innerHTML = "recaching done";
         } catch (error) {

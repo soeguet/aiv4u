@@ -39,7 +39,7 @@ export async function loadUserPath() {
  * @param {string} path
  * @returns {string} path
  */
-function ensureTrailingSlash(path) {
+export function ensureTrailingSlash(path) {
     if (path.endsWith("/") || path.endsWith("\\")) {
         return path;
     }

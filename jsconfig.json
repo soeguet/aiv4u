@@ -1,12 +1,9 @@
 {
-  "compilerOptions": {
-    "target": "esnext",
-    "module": "ESNext",
-    "checkJs": true,
-    "strict": true
-  },
-  "include": [
-    "**/*.mjs",
-    "**/*.js"
-  ]
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "checkJs": true,
+        "strict": true
+    },
+    "include": ["**/*.mjs", "**/*.js"]
 }

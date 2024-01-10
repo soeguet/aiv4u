@@ -17,6 +17,16 @@ I tried to achieve type safety with JSDocs + using a Typescript-LSP.
     -   pdf-parse-fork 1.2+
     -   sqlite3 5.1+
 
+# run project
+```sh
+npm install
+```
+```sh
+node ./backend/server.mjs
+```
+
+the frontend is available [@http://localhost:3000](http://localhost:3000)
+
 # screenshots
 
 ![image-1](./git/image-1.png)

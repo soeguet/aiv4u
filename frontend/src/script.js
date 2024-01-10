@@ -297,7 +297,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const headerRow = document.createElement("tr");
 
         if (data.length > 0) {
-            Object.keys(data[0]).forEach((key) => {
+            const firstRow = data[0];
+
+            if (firstRow == null) throw new Error("first row is null");
+
+            Object.keys(firstRow).forEach((key) => {
                 const th = document.createElement("th");
 
                 th.textContent = key;
@@ -316,9 +320,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (key === "text") {
                     td.innerHTML =
-                        "<a href=/pdf/" +
+                        "<a href='/pdf/" +
                         entry.name +
-                        " target='_blank'>preview</a>";
+                        "' target='_blank'>preview</a>";
                 } else {
                     // since value could is of type string | number
                     td.textContent = customValue.toString();

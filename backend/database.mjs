@@ -34,6 +34,9 @@ export async function writePdfDataToDatabase(db, pdfEntry) {
             [pdfEntry.name, pdfEntry.pages, pdfEntry.text],
             (err) => {
                 if (err) {
+                    console.error(
+                        "the error was thrown in writePdfDataToDatabase >> database.mjs"
+                    );
                     console.error(err);
                     return;
                 }

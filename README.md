@@ -1,7 +1,8 @@
 # aiv4u
 
 fuzzy finder for local PDFs.
-![sample](./git/sample.mp4)
+https://github.com/soeguet/aiv4u/assets/117000423/29d0a384-e5a6-4f88-b530-6d6f7f3c9bef
+
 
 Since we were in need of a fuzzy finder for around 2,700 PDFs containing sensitive information at work, I tried to fill this gap with this locally operating application.
 

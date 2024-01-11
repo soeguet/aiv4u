@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ensureTrailingSlash } from "./user-path.mjs";
-import process from "process";
+import process from "node:process";
 
 describe("ensureTrailingSlash", () => {
     it("adds a slash to a path without a trailing slash", () => {

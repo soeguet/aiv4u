@@ -101,26 +101,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function checkForRecacheStatus() {
         if (!statusFieldDiv) throw new Error("status field not found");
 
-        try {
-            let response = await fetch("http://localhost:3000/api/v1/recache");
+        let response = await fetch("http://localhost:3000/api/v1/recache");
 
-            // Überprüfen Sie, ob der Fetch-Aufruf erfolgreich war
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            let jsonStatus = await response.json();
-
-            console.log(jsonStatus);
-
-            statusFieldDiv.classList.add("text-success");
-            statusFieldDiv.innerHTML = "recaching done";
-        } catch (error) {
-            console.log("Error fetching recache status:", error);
+        if (!response.ok) {
+            console.log("Error fetching recache status: " + response.status);
             statusFieldDiv.classList.add("text-danger");
             statusFieldDiv.innerHTML =
                 "woops. looks like the recaching process failed";
+            return;
         }
+
+        let jsonStatus = await response.json();
+
+        console.log(jsonStatus);
+
+        statusFieldDiv.classList.add("text-success");
+        statusFieldDiv.innerHTML = "recaching done";
 
         if (!recacheSpinner) {
             throw new Error("recache spinner not found");
@@ -140,7 +136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ path: newPath }),
+            body: JSON.stringify({path: newPath}),
         })
             .then((response) => {
                 if (!response.ok) {
@@ -226,7 +222,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ query: query }),
+                body: JSON.stringify({query: query}),
             })
                 .then((response) => response.json())
                 .then((data) => {

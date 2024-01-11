@@ -31,7 +31,7 @@ async function main() {
 
     // 4) print out the number of pdfs in directory and in database
     const dbRowSize = await getDbRowSize(db);
-    consoleLogStatementsForTheTerminal(mainDir, dbRowSize, pdfList);
+    await consoleLogStatementsForTheTerminal(mainDir, dbRowSize, pdfList);
 
     // bail out if all pdfs are already in the database
     if (dbRowSize === pdfList.length) {

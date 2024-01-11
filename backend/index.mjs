@@ -75,7 +75,7 @@ export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
                     "/" +
                     recachingTotal
             );
-        } else if (recachingCurrent % 10 == 0) {
+        } else if (recachingCurrent % 10 === 0) {
             process.stdout.write(".");
         }
     }

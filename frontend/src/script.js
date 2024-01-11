@@ -227,7 +227,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .then((response) => response.json())
                 .then((data) => {
                     if (
-                        data.status != undefined &&
+                        data.status !== undefined &&
                         data.status === "no results"
                     ) {
                         throw new CustomError(data.total, "no results");

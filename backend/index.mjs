@@ -27,9 +27,9 @@ app.use(express.static("./frontend/"));
  *
  * @param {string} mainDir
  *
- * @returns Promise<string[]>
+ * @returns string[]
  */
-export async function fetchAllPdfFromDir(mainDir) {
+export function fetchAllPdfFromDir(mainDir) {
     return fs.readdirSync(mainDir);
 }
 
@@ -40,6 +40,8 @@ export async function fetchAllPdfFromDir(mainDir) {
  * @param {import('sqlite3').Database} db
  * @param {string[]} pdfList
  * @param {Function} writePdfToDatabaseFn
+ *
+ * @returns void
  */
 export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
     resetCacheValues(pdfList);
@@ -179,9 +181,13 @@ async function handleRecachingProcess() {
     const mainDir = await loadUserPath();
     app.use("/pdf", express.static(mainDir));
 
-    const pdfList = await fetchAllPdfFromDir(mainDir).then((pdfList) =>
-        pdfList.filter((pdf) => pdf.endsWith(".pdf"))
-    );
+    const pdfList = fetchAllPdfFromDir(mainDir)
+    pdfList.filter(pdf => pdf.endsWith(".pdf"))
+
+    if (pdfList.length === 0) {
+        return false;
+    }
+
     await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
 
     return true;

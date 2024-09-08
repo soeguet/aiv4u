@@ -19,6 +19,7 @@ export async function saveUserPath(userPath) {
 
 /**
  * Load the user chosen directory path from a .json file. If the file does not exist, return the user home directory.
+ *
  * @returns {Promise<string>} userPath
  */
 export async function loadUserPath() {

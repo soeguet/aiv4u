@@ -13,8 +13,7 @@ const port = 3000;
  * Wrapper for the main initialization.
  */
 async function main() {
-    // 1) create database table
-    await createDatabaseTable(db);
+    createDatabaseTable(db);
 
     // 2) user path
     const mainDir = await loadUserPath();
@@ -25,9 +24,8 @@ async function main() {
     // 3) -> make pdfs available to the frontend
     app.use("/pdf", express.static(mainDir));
 
-    const pdfList = (await fetchAllPdfFromDir(mainDir)).filter((pdf) =>
-        pdf.endsWith(".pdf")
-    );
+    const pdfList = fetchAllPdfFromDir(mainDir)
+    pdfList.filter((pdf) => pdf.endsWith(".pdf"));
 
     // 4) print out the number of pdfs in directory and in database
     const dbRowSize = await getDbRowSize(db);

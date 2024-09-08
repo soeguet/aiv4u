@@ -26,8 +26,10 @@ export async function dropDatabaseTable(db) {
  *
  * @param {import('sqlite3').Database} db - The SQLite3 database instance.
  * @param {PdfEntry} pdfEntry - Das PdfEntry-Objekt.
+ *
+ * @returns void
  */
-export async function writePdfDataToDatabase(db, pdfEntry) {
+export function writePdfDataToDatabase(db, pdfEntry) {
     db.serialize(() => {
         db.run(
             "INSERT OR IGNORE INTO pdfs(name, pages, text) VALUES(?, ?, ?);",
@@ -49,12 +51,12 @@ export async function writePdfDataToDatabase(db, pdfEntry) {
  * Creates a database table.
  *
  * @param {import('sqlite3').Database} db - The SQLite3 database instance.
+ *
+ * @returns void
  */
-export async function createDatabaseTable(db) {
+export function createDatabaseTable(db) {
     db.serialize(() => {
-        db.run(
-            "CREATE TABLE IF NOT EXISTS pdfs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pages INTEGER, text TEXT)"
-        );
+        db.run("CREATE TABLE IF NOT EXISTS pdfs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pages INTEGER, text TEXT)");
         db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_name ON pdfs(name)");
     });
 }

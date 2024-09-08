@@ -1,11 +1,14 @@
 import express from "express";
-import db, {
-    createDatabaseTable,
+import {
+    createDatabaseTable, db,
     getDbRowSize,
     writePdfDataToDatabase,
 } from "./database.mjs";
-import app, { cacheAllPdfsInDir, fetchAllPdfFromDir } from "./index.mjs";
 import { loadUserPath } from "./user-path.mjs";
+import { app } from "./app.mjs";
+import {cacheAllPdfsInDir, fetchAllPdfFromDir} from "./pdf.mjs";
+import path from "node:path";
+import { homedir } from "node:os";
 
 const port = 3000;
 
@@ -15,16 +18,13 @@ const port = 3000;
 async function main() {
     createDatabaseTable(db);
 
-    // 2) user path
-    const mainDir = await loadUserPath();
-    if (mainDir === "") {
-        return;
-    }
+    const configFile = path.join(homedir(), ".aiv4u.json");
+    const mainDir = await loadUserPath(configFile);
 
-    // 3) -> make pdfs available to the frontend
+    // make pdfs available to the frontend
     app.use("/pdf", express.static(mainDir));
 
-    const pdfList = fetchAllPdfFromDir(mainDir)
+    const pdfList = fetchAllPdfFromDir(mainDir);
     pdfList.filter((pdf) => pdf.endsWith(".pdf"));
 
     // 4) print out the number of pdfs in directory and in database

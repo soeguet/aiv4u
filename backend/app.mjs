@@ -1,88 +1,19 @@
 import express from "express";
-import fs from "fs";
-// @ts-ignore
-import PDF from "pdf-parse-fork";
-import db from "./database.mjs";
-
-import {
-    createDatabaseTable,
-    dropDatabaseTable,
-    getDbRowSize,
-    writePdfDataToDatabase,
-} from "./database.mjs";
 import { loadUserPath, saveUserPath } from "./user-path.mjs";
-import process from "process";
+import { getDbRowSize } from "./database.mjs";
+import {db} from "./database.mjs";
+import {handleRecachingProcess} from "./pdf.mjs";
+import {access, constants} from "node:fs";
+import { homedir } from "node:os";
+import path from "node:path";
 
 const app = express();
-let recachingCurrent = 0;
-let recachingTotal = 0;
-let factor = 0;
 
 // middleware setup
 app.use(express.json());
 app.use(express.static("./frontend/"));
 
-/**
- * Fetches all PDF names from selected Folder.
- *
- * @param {string} mainDir
- *
- * @returns string[]
- */
-export function fetchAllPdfFromDir(mainDir) {
-    return fs.readdirSync(mainDir);
-}
-
-// TODO check if folder is empty
-
-/**
- * Caches all PDFs in selected Folder.
- * @param {import('sqlite3').Database} db
- * @param {string[]} pdfList
- * @param {Function} writePdfToDatabaseFn
- *
- * @returns void
- */
-export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
-    resetCacheValues(pdfList);
-
-    const mainDir = await loadUserPath();
-
-    for (const pdf of pdfList) {
-        recachingCurrent++;
-
-        try {
-            let dataBuffer = fs.readFileSync(mainDir + pdf);
-            let bufferedPdf = await PDF(dataBuffer);
-
-            const pdfEntry = {
-                name: pdf,
-                pages: bufferedPdf.numpages,
-                text: bufferedPdf.text,
-            };
-
-            await writePdfToDatabaseFn(db, pdfEntry);
-        } catch (err) {
-            console.log("Error processing PDF " + pdf + ": " + err);
-        }
-
-        let progress = (recachingCurrent / recachingTotal) * 100;
-        if (progress > factor) {
-            factor += 10;
-            console.log(
-                "\nprogress: " +
-                    Math.round(progress) +
-                    "%, recaching status: " +
-                    recachingCurrent +
-                    "/" +
-                    recachingTotal
-            );
-        } else if (recachingCurrent % 10 === 0) {
-            process.stdout.write(".");
-        }
-    }
-}
-
+// routes
 // query search terms from frontend
 app.post("/api/v1/search", (req, res) => {
     /** @type {string[]} */
@@ -138,7 +69,8 @@ app.post("/api/v1/search", (req, res) => {
 });
 
 app.get("/api/v1/folder-path", async (_, res) => {
-    let mainDir = await loadUserPath();
+    const configFile = path.join(homedir(), ".aiv4u.json");
+    let mainDir = await loadUserPath(configFile);
     res.json({ path: mainDir });
 });
 
@@ -146,7 +78,7 @@ app.post("/api/v1/recache", async (_, res) => {
     console.log("recaching started");
 
     /** @type {boolean} */
-    const recachingSuccess = await handleRecachingProcess();
+    const recachingSuccess = await handleRecachingProcess(db,app);
 
     console.log("recaching done (after handleRecachingProcess part)");
 
@@ -157,49 +89,13 @@ app.post("/api/v1/recache", async (_, res) => {
     }
 });
 
-/**
- * Reset module variables for recaching process. They will be used to calculate the progress and print to stdout.
- *
- * @param {string[]} pdfList
- */
-function resetCacheValues(pdfList) {
-    recachingTotal = pdfList.length;
-    recachingCurrent = 0;
-    factor = 0;
-}
-
-/**
- *
- * Wraps the recaching process in a promise.
- *
- * @returns Promise<boolean>
- */
-async function handleRecachingProcess() {
-    await dropDatabaseTable(db);
-    await createDatabaseTable(db);
-
-    const mainDir = await loadUserPath();
-    app.use("/pdf", express.static(mainDir));
-
-    const pdfList = fetchAllPdfFromDir(mainDir)
-    pdfList.filter(pdf => pdf.endsWith(".pdf"))
-
-    if (pdfList.length === 0) {
-        return false;
-    }
-
-    await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
-
-    return true;
-}
-
 app.get("/api/v1/recache", (_, res) => {
     res.json({ status: "done" });
 });
 
 app.post("/api/v1/folder-path", (req, res) => {
     // first check if path is valid
-    fs.access(req.body.path, fs.constants.R_OK, async (err) => {
+    access(req.body.path, constants.R_OK, async (err) => {
         if (err) {
             // throw error if not
             console.log("path not found");
@@ -212,4 +108,4 @@ app.post("/api/v1/folder-path", (req, res) => {
     });
 });
 
-export default app;
+export {app};

@@ -1,3 +1,7 @@
+import sqlite3 from "sqlite3";
+
+const db = new sqlite3.Database("./myDB.db");
+
 /**
  * @typedef {Object} PdfEntry
  * @property {string} name - pdf name
@@ -5,16 +9,15 @@
  * @property {string} text - pdf content as string
  */
 
-import sqlite3 from "sqlite3";
-const db = new sqlite3.Database("./myDB.db");
-
 /**
  *
  * Drop database table
  *
  * @param {import('sqlite3').Database} db - The SQLite3 database instance.
+ * 
+ * @returns void
  */
-export async function dropDatabaseTable(db) {
+export function dropDatabaseTable(db) {
     db.serialize(() => {
         db.run("DROP TABLE IF EXISTS pdfs;");
     });
@@ -40,7 +43,6 @@ export function writePdfDataToDatabase(db, pdfEntry) {
                         "the error was thrown in writePdfDataToDatabase >> database.mjs"
                     );
                     console.error(err);
-                    return;
                 }
             }
         );
@@ -66,6 +68,7 @@ export function createDatabaseTable(db) {
  * Counts the number of rows in the database and returns the number.
  *
  * @param {import('sqlite3').Database} db - The SQLite3 database instance.
+ *
  * @returns {Promise<number>}
  */
 export async function getDbRowSize(db) {
@@ -79,4 +82,4 @@ export async function getDbRowSize(db) {
     });
 }
 
-export default db;
+export {db};

@@ -15,6 +15,22 @@ import express from "express";
 import process from "node:process";
 import path from "node:path";
 import { homedir } from "node:os";
+import { makePdfsAvailableToFrontend, retrievePdfsFromDir } from "./server.mjs";
+
+
+//const DEFAULT_OPTIONS = {
+//    pagerender: render_page,
+//    max: 0,
+//    //check https://mozilla.github.io/pdf.js/getting_started/
+//    version: 'v1.10.100'
+//}
+
+/**
+ * @typedef {Object} PDFDocument
+ * @property {string} pagerender
+ * @property {number} max
+ * @property {string} version
+ * /
 
 /**
  * @typedef {Object} PdfEntry
@@ -43,7 +59,6 @@ export function fetchAllPdfFromDir(mainDir) {
  * @returns void
  */
 export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
-    resetCacheValues(pdfList);
 
     const configFile = path.join(homedir(), ".aiv4u.json");
     const mainDir = await loadUserPath(configFile);
@@ -52,16 +67,21 @@ export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
         incrementRecachingCurrent();
 
         try {
+            /** @type {Buffer} */
             let dataBuffer = readFileSync(mainDir + pdf);
+            /** @type {PDFDocument} */
             let bufferedPdf = await PDF(dataBuffer);
 
+
+            /** @type {PdfEntry} */
             const pdfEntry = {
                 name: pdf,
-                pages: bufferedPdf.numpages,
-                text: bufferedPdf.text,
+                pages: bufferedPdf.max,
+                text: bufferedPdf.pagerender,
             };
 
-            await writePdfToDatabaseFn(db, pdfEntry);
+            writePdfToDatabaseFn(db, pdfEntry);
+
         } catch (err) {
             console.log("Error processing PDF " + pdf + ": " + err);
         }
@@ -88,25 +108,23 @@ export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
  * Wraps the recaching process in a promise.
  *
  * @param {import("sqlite3").Database} db
- * @param {express.Express} app
  *
  * @returns {Promise<boolean>}
  */
-export async function handleRecachingProcess(db, app) {
+export async function handleRecachingProcess(db) {
     dropDatabaseTable(db);
     createDatabaseTable(db);
 
-    const configFile = path.join(homedir(), ".aiv4u.json");
-    const mainDir = await loadUserPath(configFile);
-    app.use("/pdf", express.static(mainDir));
-
-    const pdfList = fetchAllPdfFromDir(mainDir);
-    pdfList.filter(pdf => pdf.endsWith(".pdf"));
+    /** @type {string} */
+    const mainDir = await makePdfsAvailableToFrontend();
+    /** @type {string[]} */
+    const pdfList = retrievePdfsFromDir(mainDir)
 
     if (pdfList.length === 0) {
         return false;
     }
 
+    resetCacheValues(pdfList);
     await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
 
     return true;

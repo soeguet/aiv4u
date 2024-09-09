@@ -10,6 +10,7 @@ import { cacheAllPdfsInDir, fetchAllPdfFromDir } from "./pdf.mjs";
 import { homedir } from "node:os";
 import path from "node:path";
 import exec from "node:child_process";
+import { resetCacheValues } from "./variables.mjs";
 
 /** @type {number} */
 const port = 3000;
@@ -19,12 +20,15 @@ const port = 3000;
  *
  * @returns {Promise<string>} mainDir
  */
-async function makePdfsAvailableToFrontend() {
+export async function makePdfsAvailableToFrontend() {
+    /** @type {string} */
     const configFile = path.join(homedir(), ".aiv4u.json");
+    /** @type {string} */
     const mainDir = await loadUserPath(configFile);
 
     // make pdfs available to the frontend
     app.use("/pdf", express.static(mainDir));
+
     return mainDir;
 }
 
@@ -36,9 +40,12 @@ async function makePdfsAvailableToFrontend() {
  *
  * @returns {string[]}
  */
-function retrievePdfsFromDir(mainDir) {
+export function retrievePdfsFromDir(mainDir) {
+    /** @type {string[]} */
     const pdfList = fetchAllPdfFromDir(mainDir);
+
     pdfList.filter((pdf) => pdf.endsWith(".pdf"));
+
     return pdfList;
 }
 
@@ -69,13 +76,17 @@ app.listen(port, async () => {
 
     createDatabaseTable(db);
 
+    /** @type {string} */
     const mainDir = await makePdfsAvailableToFrontend();
+    /** @type {string[]} */
     const pdfList = retrievePdfsFromDir(mainDir);
+    /** @type {number} */
     const dbRowSize = await getDbRowSize(db);
 
-    await consoleLogStatementsForTheTerminal(mainDir, dbRowSize, pdfList);
+    consoleLogStatementsForTheTerminal(mainDir, dbRowSize, pdfList);
 
     if (dbRowSize !== pdfList.length) {
+        resetCacheValues(pdfList);
         await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
     }
 
@@ -89,11 +100,14 @@ app.listen(port, async () => {
 
 /**
  * Print out statements for the terminal.
+ *
  * @param {string} mainDir - The path to the directory with the PDFs.
  * @param {number} dbRowSize - The number of rows in the database.
  * @param {string[]} pdfList - The list of PDFs in the directory.
+ *
+ * @returns void
  */
-async function consoleLogStatementsForTheTerminal(mainDir, dbRowSize, pdfList) {
+function consoleLogStatementsForTheTerminal(mainDir, dbRowSize, pdfList) {
     console.log(`
 
  ██████  ██████  ███████     ███████ ██    ██ ███████ ███████ ██    ██     ███████ ██ ███    ██ ██████  ███████ ██████  

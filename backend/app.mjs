@@ -75,12 +75,9 @@ app.get("/api/v1/folder-path", async (_, res) => {
 });
 
 app.post("/api/v1/recache", async (_, res) => {
-    console.log("recaching started");
 
     /** @type {boolean} */
-    const recachingSuccess = await handleRecachingProcess(db,app);
-
-    console.log("recaching done (after handleRecachingProcess part)");
+    const recachingSuccess = await handleRecachingProcess(db);
 
     if (recachingSuccess) {
         res.status(200).send("Recaching completed");
@@ -94,14 +91,11 @@ app.get("/api/v1/recache", (_, res) => {
 });
 
 app.post("/api/v1/folder-path", (req, res) => {
-    // first check if path is valid
     access(req.body.path, constants.R_OK, async (err) => {
         if (err) {
-            // throw error if not
             console.log("path not found");
             res.status(404).send({ error: "Path not found" });
         } else {
-            // if ok, save path @backend
             const savedPath = await saveUserPath(req.body.path);
             res.json({ path: savedPath, status: "ok" });
         }

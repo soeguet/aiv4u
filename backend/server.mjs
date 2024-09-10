@@ -11,43 +11,37 @@ import { homedir } from "node:os";
 import path from "node:path";
 import exec from "node:child_process";
 import { resetCacheValues } from "./variables.mjs";
+import { platform } from "node:process";
 
 /** @type {number} */
 const port = 3000;
 
-/**
- * Makes the PDFs available to the frontend.
- *
- * @returns {Promise<string>} mainDir
- */
-export async function makePdfsAvailableToFrontend() {
+// start server, cache pdfs and open server port
+app.listen(port, async () => {
+
+    createDatabaseTable(db);
+
     /** @type {string} */
-    const configFile = path.join(homedir(), ".aiv4u.json");
-    /** @type {string} */
-    const mainDir = await loadUserPath(configFile);
+    const mainDir = await makePdfsAvailableToFrontend();
+    /** @type {import("node:fs").Dirent[]} */
+    const pdfList = retrievePdfsFromDir(mainDir);
+    /** @type {number} */
+    const dbRowSize = await getDbRowSize(db);
 
-    // make pdfs available to the frontend
-    app.use("/pdf", express.static(mainDir));
+    consoleLogStatementsForTheTerminal(mainDir, dbRowSize, pdfList);
 
-    return mainDir;
-}
+    if (dbRowSize !== pdfList.length) {
+        resetCacheValues(pdfList);
+        await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
+    }
 
+    const url = `http://localhost:${port}`;
+    console.log(`fuzzy finder app listening on ${url}`);
 
-/**
- * Retrieves all PDFs from the directory.
- *
- * @param {string} mainDir
- *
- * @returns {string[]}
- */
-export function retrievePdfsFromDir(mainDir) {
-    /** @type {string[]} */
-    const pdfList = fetchAllPdfFromDir(mainDir);
-
-    pdfList.filter((pdf) => pdf.endsWith(".pdf"));
-
-    return pdfList;
-}
+    if (platform === "linux") {
+        openUrlInDefaultBrowserOnLinux(url);
+    }
+});
 
 /**
  * Opens the URL in the default browser on Linux.
@@ -66,44 +60,16 @@ function openUrlInDefaultBrowserOnLinux(url) {
 
         if (stderr) {
             console.error(`Error: ${stderr}`);
-            return;
         }
     });
 }
-
-// start server, cache pdfs and open server port
-app.listen(port, async () => {
-
-    createDatabaseTable(db);
-
-    /** @type {string} */
-    const mainDir = await makePdfsAvailableToFrontend();
-    /** @type {string[]} */
-    const pdfList = retrievePdfsFromDir(mainDir);
-    /** @type {number} */
-    const dbRowSize = await getDbRowSize(db);
-
-    consoleLogStatementsForTheTerminal(mainDir, dbRowSize, pdfList);
-
-    if (dbRowSize !== pdfList.length) {
-        resetCacheValues(pdfList);
-        await cacheAllPdfsInDir(db, pdfList, writePdfDataToDatabase);
-    }
-
-    const url = `http://localhost:${port}`;
-    console.log(`fuzzy finder app listening on ${url}`);
-
-    if (process.platform === "linux") {
-        openUrlInDefaultBrowserOnLinux(url);
-    }
-});
 
 /**
  * Print out statements for the terminal.
  *
  * @param {string} mainDir - The path to the directory with the PDFs.
  * @param {number} dbRowSize - The number of rows in the database.
- * @param {string[]} pdfList - The list of PDFs in the directory.
+ * @param {import("node:fs").Dirent[]} pdfList - The list of PDFs in the directory.
  *
  * @returns void
  */
@@ -123,4 +89,39 @@ function consoleLogStatementsForTheTerminal(mainDir, dbRowSize, pdfList) {
 || = ${Math.floor((dbRowSize / pdfList.length) * 100)}% pdfs are in the database
 ################# ################# ################# #################
 `);
+}
+
+/**
+ * Retrieves all PDFs from the directory.
+ *
+ * @param {string} mainDir
+ *
+ * @returns {import("node:fs").Dirent[]}
+ */
+export function retrievePdfsFromDir(mainDir) {
+    /** @type {import("node:fs").Dirent[]} */
+    const pdfList = fetchAllPdfFromDir(mainDir);
+
+    pdfList.filter((pdf) =>{
+        return pdf.isFile() && pdf.name.endsWith(".pdf");
+    });
+
+    return pdfList;
+}
+
+/**
+ * Makes the PDFs available to the frontend.
+ *
+ * @returns {Promise<string>} mainDir
+ */
+export async function makePdfsAvailableToFrontend() {
+    /** @type {string} */
+    const configFile = path.join(homedir(), ".aiv4u.json");
+    /** @type {string} */
+    const mainDir = await loadUserPath(configFile);
+
+    // make pdfs available to the frontend
+    app.use("/pdf", express.static(mainDir));
+
+    return mainDir;
 }

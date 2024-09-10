@@ -1,4 +1,5 @@
-import { existsSync, promises as fs } from "node:fs";
+import { existsSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "process";
@@ -17,7 +18,7 @@ const configFile = path.join(os.homedir(), ".aiv4u.json");
 export async function saveUserPath(userPath) {
     let fullPath = ensureTrailingSlash(userPath);
     const config = { fullPath };
-    await fs.writeFile(configFile, JSON.stringify(config));
+    await writeFile(configFile, JSON.stringify(config));
 
     return fullPath;
 }
@@ -30,14 +31,13 @@ export async function saveUserPath(userPath) {
  * @returns Promise<string> userPath
  */
 export async function loadUserPath(configFile) {
-    //check if file exists
 
     /** @type {boolean} */
     const fileExists = existsSync(configFile);
 
     if (fileExists) {
         /** @type {string} */
-        const configFileContent = await fs.readFile(configFile, "utf8");
+        const configFileContent = await readFile(configFile, "utf8");
 
         /** @type {Config} */
         const config = JSON.parse(configFileContent);

@@ -1,9 +1,5 @@
 import {readdirSync, readFileSync} from "node:fs";
 import {
-    addToFactor,
-    getFactor,
-    getRecachingCurrent,
-    getRecachingTotal,
     incrementRecachingCurrent,
     resetCacheValues
 } from "./variables.mjs";
@@ -11,8 +7,6 @@ import {loadUserPath} from "./user-path.mjs";
 // @ts-ignore
 import PDF from "pdf-parse-fork";
 import {createDatabaseTable, dropDatabaseTable, writePdfDataToDatabase} from "./database.mjs";
-import express from "express";
-import process from "node:process";
 import path from "node:path";
 import { homedir } from "node:os";
 import { makePdfsAvailableToFrontend, retrievePdfsFromDir } from "./server.mjs";
@@ -27,8 +21,11 @@ import { makePdfsAvailableToFrontend, retrievePdfsFromDir } from "./server.mjs";
 
 /**
  * @typedef {Object} PDFDocument
- * @property {string} pagerender
- * @property {number} max
+ * @property {Object} info
+ * @property {string | null} metadata
+ * @property {number} numpages
+ * @property {number} numrender
+ * @property {string} text
  * @property {string} version
  * /
 
@@ -44,16 +41,21 @@ import { makePdfsAvailableToFrontend, retrievePdfsFromDir } from "./server.mjs";
  *
  * @param {string} mainDir
  *
- * @returns {string[]}
+ * @returns {import("node:fs").Dirent[]}
  */
 export function fetchAllPdfFromDir(mainDir) {
-    return readdirSync(mainDir);
+    return readdirSync(mainDir,
+        { withFileTypes:true,
+            encoding: "utf8",
+            recursive: true,
+        }
+    );
 }
 
 /**
  * Caches all PDFs in selected Folder.
  * @param {import("sqlite3").Database} db
- * @param {string[]} pdfList
+ * @param {import("node:fs").Dirent[]} pdfList
  * @param {Function} writePdfToDatabaseFn
  *
  * @returns void
@@ -63,21 +65,22 @@ export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
     const configFile = path.join(homedir(), ".aiv4u.json");
     const mainDir = await loadUserPath(configFile);
 
+
     for (const pdf of pdfList) {
+
         incrementRecachingCurrent();
 
         try {
             /** @type {Buffer} */
-            let dataBuffer = readFileSync(mainDir + pdf);
+            let dataBuffer = readFileSync(mainDir + pdf.name);
             /** @type {PDFDocument} */
             let bufferedPdf = await PDF(dataBuffer);
 
-
             /** @type {PdfEntry} */
             const pdfEntry = {
-                name: pdf,
-                pages: bufferedPdf.max,
-                text: bufferedPdf.pagerender,
+                name: pdf.name,
+                pages: bufferedPdf.numpages,
+                text: bufferedPdf.text,
             };
 
             writePdfToDatabaseFn(db, pdfEntry);
@@ -86,20 +89,20 @@ export async function cacheAllPdfsInDir(db, pdfList, writePdfToDatabaseFn) {
             console.log("Error processing PDF " + pdf + ": " + err);
         }
 
-        let progress = (getRecachingCurrent() / getRecachingTotal()) * 100;
-        if (progress > getFactor()) {
-            addToFactor(10);
-            console.log(
-                "\nprogress: " +
-                Math.round(progress) +
-                "%, recaching status: " +
-                getRecachingCurrent()+
-                "/" +
-                getRecachingTotal()
-            );
-        } else if (getRecachingCurrent()% 10 === 0) {
-            process.stdout.write(".");
-        }
+        //let progress = (getRecachingCurrent() / getRecachingTotal()) * 100;
+        //if (progress > getFactor()) {
+        //    addToFactor(10);
+        //    console.log(
+        //        "\nprogress: " +
+        //        Math.round(progress) +
+        //        "%, recaching status: " +
+        //        getRecachingCurrent()+
+        //        "/" +
+        //        getRecachingTotal()
+        //    );
+        //} else if (getRecachingCurrent()% 10 === 0) {
+        //    process.stdout.write(".");
+        //}
     }
 }
 
@@ -117,7 +120,7 @@ export async function handleRecachingProcess(db) {
 
     /** @type {string} */
     const mainDir = await makePdfsAvailableToFrontend();
-    /** @type {string[]} */
+    /** @type  {import("node:fs").Dirent[]} */
     const pdfList = retrievePdfsFromDir(mainDir)
 
     if (pdfList.length === 0) {

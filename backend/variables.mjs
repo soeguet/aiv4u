@@ -5,7 +5,7 @@ let factor = 0;
 /**
  * Reset module variables for recaching process. They will be used to calculate the progress and print to stdout.
  *
- * @param {string[]} pdfList
+ * @param {import("node:fs").Dirent[]} pdfList
  *
  * @returns void
  */
